@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 uuid = { version = "0.4", features = ["v4"] }
+dot = "0.1"
