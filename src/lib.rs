@@ -1,7 +1,11 @@
-use std::collections::{HashMap as Map, HashSet as Set};
+use std::collections::HashSet as Set;
 use std::fmt;
 
 use uuid::Uuid;
+
+mod buchi;
+
+const INIT_NODE_ID: &str = "INIT";
 
 macro_rules! set {
     ( $( $x:expr ),* ) => {  // Match zero or more comma delimited items
@@ -49,8 +53,8 @@ impl fmt::Display for LTLExpression {
             LTLExpression::Not(e) => write!(f, "¬{}", e),
             LTLExpression::And(e1, e2) => write!(f, "{} ∧ {}", e1, e2),
             LTLExpression::Or(e1, e2) => write!(f, "{} ∨ {}", e1, e2),
-            LTLExpression::G(e) => write!(f, "□ ({})", e),
-            LTLExpression::F(e) => write!(f, "◊ ({})", e),
+            LTLExpression::G(e) => write!(f, "G ({})", e),
+            LTLExpression::F(e) => write!(f, "F ({})", e),
             LTLExpression::U(e1, e2) => write!(f, "({} U {})", e1, e2),
             LTLExpression::R(e1, e2) => write!(f, "({} R {})", e1, e2),
             LTLExpression::V(e1, e2) => write!(f, "({} V {})", e1, e2),
@@ -95,18 +99,6 @@ pub fn rewrite(ltle: LTLExpression) -> LTLExpression {
     }
 }
 
-/*
-  globals
-    Nodes : set of graph nodes  := ∅
-    Incoming: Nodes → NodeSet := ∅
-    Now    : Nodes → LTLSet := ∅
-    Next   : Nodes → LTLSet := ∅
-  function create_graph(LTL f){
-     expand({f}, ∅, ∅, {init} )
-     return (Nodes, Now, Incoming)
-  }
-*/
-
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Node {
     id: String,
@@ -144,31 +136,51 @@ impl Node {
     }
 }
 
-// # pseudo-code:
-//```
-// function create_graph(LTL f){
-//     expand({f}, ∅, ∅, {init} )
-//     return (Nodes, Now, Incoming)
-// }
-//```
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "id = {}\n", self.id);
+
+        let incoming = self
+            .incoming
+            .iter()
+            .fold("".to_string(), |acc, inc| acc + &format!("{},", inc.id));
+        write!(f, "{}.incoming = [{}]\n", self.id, incoming);
+
+        let oldf = self
+            .oldf
+            .iter()
+            .fold("".to_string(), |acc, f| acc + &format!("{}, ", f));
+        write!(f, "{}.oldf = [{}]\n", self.id, oldf);
+
+        let newf = self
+            .newf
+            .iter()
+            .fold("".to_string(), |acc, f| acc + &format!("{}, ", f));
+        write!(f, "{}.newf = [{}]\n", self.id, newf);
+
+        let next = self
+            .next
+            .iter()
+            .fold("".to_string(), |acc, f| acc + &format!("{}, ", f));
+        write!(f, "{}.next = [{}]", self.id, next)
+    }
+}
+
 pub fn create_graph(f: LTLExpression) -> Vec<Node> {
-    let mut new_begin = vec![f];
+    let new_begin = vec![f];
 
-    let init = Node::new("init");
-    let mut incoming = vec![init];
+    let init = Node::new(INIT_NODE_ID);
+    let incoming = vec![init];
 
-    let mut n = Node::new2(
+    let n = Node::new2(
         &Uuid::new_v4().to_string(),
         incoming,
         vec![],
         new_begin,
         vec![],
     );
-    let mut nodeset = vec![];
+    let nodeset = vec![];
 
-    println!("{:#?}", n);
-
-    // expand({f}, ∅, ∅, {init} )
     expand(n, nodeset)
 }
 
@@ -195,12 +207,8 @@ fn expand<'a>(mut node: Node, mut nodeset: Vec<Node>) -> Vec<Node> {
         node.newf.remove(0);
 
         match f {
-            LTLExpression::False => {
-                return nodeset;
-            }
-            LTLExpression::Not(_) if node.oldf.contains(&f) => {
-                return nodeset;
-            }
+            LTLExpression::False => return nodeset,
+            LTLExpression::Not(_) if node.oldf.contains(&f) => return nodeset,
             LTLExpression::Literal(_) | LTLExpression::True | LTLExpression::Not(_) => {
                 node.oldf.push(f);
                 return expand(node, nodeset);
@@ -212,9 +220,7 @@ fn expand<'a>(mut node: Node, mut nodeset: Vec<Node>) -> Vec<Node> {
                 node.newf.push(f2.as_ref().clone());
                 return expand(node, nodeset);
             }
-            LTLExpression::U(ref f1, ref f2)
-            | LTLExpression::Or(ref f1, ref f2)
-            | LTLExpression::R(ref f1, ref f2) => {
+            LTLExpression::U(_, _) | LTLExpression::Or(_, _) | LTLExpression::R(_, _) => {
                 let incoming1 = node.incoming.clone();
                 let mut next1 = node.next.clone();
                 next1.push(f.clone());
@@ -227,11 +233,16 @@ fn expand<'a>(mut node: Node, mut nodeset: Vec<Node>) -> Vec<Node> {
                 let mut oldfs1 = node.oldf.clone();
                 oldfs1.push(f.clone());
 
-                let node1 = Node::new2(&Uuid::new_v4().to_string(), incoming1, oldfs1, newfs1, next1);
-
+                let node1 = Node::new2(
+                    &Uuid::new_v4().to_string(),
+                    incoming1,
+                    oldfs1,
+                    newfs1,
+                    next1,
+                );
 
                 let incoming2 = node.incoming.clone();
-                let mut next2 = node.next.clone();
+                let next2 = node.next.clone();
                 let mut newfs2 = node.newf.clone();
 
                 let new2 = new2(f.clone());
@@ -241,17 +252,19 @@ fn expand<'a>(mut node: Node, mut nodeset: Vec<Node>) -> Vec<Node> {
                 let mut oldfs2 = node.oldf.clone();
                 oldfs2.push(f.clone());
 
-                let node2 = Node::new2(&Uuid::new_v4().to_string(), incoming2, oldfs2, newfs2, next2);
+                let node2 = Node::new2(
+                    &Uuid::new_v4().to_string(),
+                    incoming2,
+                    oldfs2,
+                    newfs2,
+                    next2,
+                );
 
-                return expand(node2, expand(node1, nodeset))
+                return expand(node2, expand(node1, nodeset));
             }
-            _ => unimplemented!(),
+            _ => panic!("Expression must be simplify"),
         }
-
-        return nodeset;
     }
-
-    vec![]
 }
 
 fn new1(ltle: LTLExpression) -> Set<LTLExpression> {
@@ -281,7 +294,7 @@ fn next1(ltle: LTLExpression) -> Set<LTLExpression> {
 }
 
 fn check_equal_next_and_old(k: &Node, n: &Node) -> bool {
-    if k.id == "init" || n.id == "init" {
+    if k.id == INIT_NODE_ID || n.id == INIT_NODE_ID {
         return false;
     }
 
@@ -327,7 +340,5 @@ mod tests {
         expr.rewrite();
 
         let nodes = create_graph(expr);
-
-        println!("{:?}", nodes[0]);
     }
 }
