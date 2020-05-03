@@ -1,20 +1,24 @@
 use std::collections::HashSet as Set;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::fmt;
 
 use uuid::Uuid;
 
 mod buchi;
+mod dot;
 
-const INIT_NODE_ID: &str = "INIT";
+const INIT_NODE_ID: usize = 0;
+static NODE_NAME_COUNTER: AtomicUsize = AtomicUsize::new(1);
+
 
 macro_rules! set {
-    ( $( $x:expr ),* ) => {  // Match zero or more comma delimited items
+    ( $( $x:expr ),* ) => {
         {
-            let mut temp_set = Set::new();  // Create a mutable HashSet
+            let mut temp_set = Set::new();
             $(
-                temp_set.insert($x); // Insert each item matched into the HashSet
+                temp_set.insert($x);
             )*
-            temp_set // Return the populated HashSet
+            temp_set
         }
     };
 }
@@ -101,7 +105,7 @@ pub fn rewrite(ltle: LTLExpression) -> LTLExpression {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Node {
-    id: String,
+    id: usize,
     incoming: Vec<Node>,
     next: Vec<LTLExpression>,
     oldf: Vec<LTLExpression>,
@@ -109,9 +113,9 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(id: &str) -> Self {
+    pub fn new(id: usize) -> Self {
         Self {
-            id: id.to_owned(),
+            id: id,
             incoming: vec![],
             next: vec![],
             oldf: vec![],
@@ -120,14 +124,14 @@ impl Node {
     }
 
     pub fn new2(
-        id: &str,
+        id: usize,
         incoming: Vec<Node>,
         oldf: Vec<LTLExpression>,
         newf: Vec<LTLExpression>,
         next: Vec<LTLExpression>,
     ) -> Self {
         Self {
-            id: id.to_owned(),
+            id,
             incoming,
             next,
             oldf,
@@ -138,31 +142,35 @@ impl Node {
 
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "id = {}\n", self.id);
+        let mut buff = String::new();
+        buff.push_str(&format!("{}id = {}\n", &buff, self.id));
 
         let incoming = self
             .incoming
             .iter()
             .fold("".to_string(), |acc, inc| acc + &format!("{},", inc.id));
-        write!(f, "{}.incoming = [{}]\n", self.id, incoming);
+
+        buff.push_str(&format!("{}{}.incoming = [{}]\n", &buff, self.id, incoming));
 
         let oldf = self
             .oldf
             .iter()
             .fold("".to_string(), |acc, f| acc + &format!("{}, ", f));
-        write!(f, "{}.oldf = [{}]\n", self.id, oldf);
+        buff.push_str(&format!("{}{}.oldf = [{}]\n", &buff, self.id, oldf));
 
         let newf = self
             .newf
             .iter()
             .fold("".to_string(), |acc, f| acc + &format!("{}, ", f));
-        write!(f, "{}.newf = [{}]\n", self.id, newf);
+        buff.push_str(&format!("{}{}.newf = [{}]\n", &buff, self.id, newf));
 
         let next = self
             .next
             .iter()
             .fold("".to_string(), |acc, f| acc + &format!("{}, ", f));
-        write!(f, "{}.next = [{}]", self.id, next)
+        buff.push_str(&format!("{}{}.next = [{}]", &buff, self.id, next));
+
+        write!(f, "{}", buff)
     }
 }
 
@@ -173,7 +181,7 @@ pub fn create_graph(f: LTLExpression) -> Vec<Node> {
     let incoming = vec![init];
 
     let n = Node::new2(
-        &Uuid::new_v4().to_string(),
+        NODE_NAME_COUNTER.fetch_add(1, Ordering::SeqCst),
         incoming,
         vec![],
         new_begin,
@@ -199,7 +207,7 @@ fn expand<'a>(mut node: Node, mut nodeset: Vec<Node>) -> Vec<Node> {
         let next = vec![];
         let newfs = node.next.clone();
         let oldfs = vec![];
-        let new_node = Node::new2(&Uuid::new_v4().to_string(), incoming, oldfs, newfs, next);
+        let new_node = Node::new2(NODE_NAME_COUNTER.fetch_add(1, Ordering::SeqCst), incoming, oldfs, newfs, next);
 
         return expand(new_node, nodeset);
     } else {
@@ -234,7 +242,7 @@ fn expand<'a>(mut node: Node, mut nodeset: Vec<Node>) -> Vec<Node> {
                 oldfs1.push(f.clone());
 
                 let node1 = Node::new2(
-                    &Uuid::new_v4().to_string(),
+                    NODE_NAME_COUNTER.fetch_add(1, Ordering::SeqCst),
                     incoming1,
                     oldfs1,
                     newfs1,
@@ -253,7 +261,7 @@ fn expand<'a>(mut node: Node, mut nodeset: Vec<Node>) -> Vec<Node> {
                 oldfs2.push(f.clone());
 
                 let node2 = Node::new2(
-                    &Uuid::new_v4().to_string(),
+                    NODE_NAME_COUNTER.fetch_add(1, Ordering::SeqCst),
                     incoming2,
                     oldfs2,
                     newfs2,
@@ -285,13 +293,13 @@ fn new2(ltle: LTLExpression) -> Set<LTLExpression> {
     }
 }
 
-fn next1(ltle: LTLExpression) -> Set<LTLExpression> {
-    match ltle {
-        LTLExpression::U(f1, f2) => set! { LTLExpression::U(f1, f2) },
-        LTLExpression::R(f1, f2) => set! { LTLExpression::R(f1, f2) },
-        _ => set! {},
-    }
-}
+//fn next1(ltle: LTLExpression) -> Set<LTLExpression> {
+//    match ltle {
+//        LTLExpression::U(f1, f2) => set! { LTLExpression::U(f1, f2) },
+//        LTLExpression::R(f1, f2) => set! { LTLExpression::R(f1, f2) },
+//        _ => set! {},
+//    }
+//}
 
 fn check_equal_next_and_old(k: &Node, n: &Node) -> bool {
     if k.id == INIT_NODE_ID || n.id == INIT_NODE_ID {
@@ -327,11 +335,10 @@ fn check_equal_next_and_old(k: &Node, n: &Node) -> bool {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
-    fn display_ltl_expression() {
+    fn it_should_create_graph_from_ltl() {
         let mut expr = LTLExpression::U(
             Box::new(LTLExpression::Literal("p".to_owned())),
             Box::new(LTLExpression::Literal("q".to_owned())),
@@ -340,5 +347,6 @@ mod tests {
         expr.rewrite();
 
         let nodes = create_graph(expr);
+        assert_eq!(3, nodes.len());
     }
 }
