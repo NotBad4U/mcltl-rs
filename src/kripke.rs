@@ -132,7 +132,7 @@ impl KripkeStructure {
         }
         buchi_nodes_adj.insert(INIT_NODE_ID.into(), init_node.clone());
 
-        buchi.accepting_states = vec![buchi_nodes_adj.iter().map(|(_, v)| v.clone()).collect()];
+        buchi.accepting_states = buchi_nodes_adj.iter().map(|(_, v)| v.clone()).collect();
         buchi.adj_list = buchi_nodes_adj.into_iter().map(|(_, v)| v).collect();
         buchi.init_states = vec![init_node];
 
@@ -202,6 +202,6 @@ mod test_kripke {
         //FIXME: make the asserts more strong
         assert_eq!(4, buchi.adj_list.len());
         assert_eq!(1, buchi.init_states.len());
-        assert_eq!(4, buchi.accepting_states[0].len());
+        assert_eq!(4, buchi.accepting_states.len());
     }
 }

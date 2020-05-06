@@ -44,14 +44,14 @@ impl fmt::Display for BuchiNode {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Buchi {
+pub struct GeneralBuchi {
     pub states: Vec<String>,
     pub accepting_states: Vec<Vec<BuchiNode>>,
     pub init_states: Vec<BuchiNode>,
     pub adj_list: Vec<BuchiNode>,
 }
 
-impl fmt::Display for Buchi {
+impl fmt::Display for GeneralBuchi {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut buff = String::new();
         for (i, ac) in self.accepting_states.iter().enumerate() {
@@ -75,6 +75,45 @@ impl fmt::Display for Buchi {
 
         write!(f, "{}", buff)
     }
+}
+
+impl GeneralBuchi {
+    pub fn new() -> Self {
+        Self {
+            states: Vec::new(),
+            accepting_states: Vec::new(),
+            init_states: Vec::new(),
+            adj_list: Vec::new(),
+        }
+    }
+
+    pub fn get_node(&self, name: &str) -> Option<BuchiNode> {
+        for adj in self.adj_list.iter() {
+            if adj.id == name {
+                return Some(adj.clone());
+            }
+        }
+
+        None
+    }
+
+    pub fn get_node_mut(&mut self, name: &str) -> Option<&mut BuchiNode> {
+        for adj in self.adj_list.iter_mut() {
+            if adj.id == name {
+                return Some(adj);
+            }
+        }
+
+        None
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct Buchi {
+    pub states: Vec<String>,
+    pub accepting_states: Vec<BuchiNode>,
+    pub init_states: Vec<BuchiNode>,
+    pub adj_list: Vec<BuchiNode>,
 }
 
 impl Buchi {
@@ -133,8 +172,8 @@ fn extract_unitl_subf(
 }
 
 // LGBA construction from create_graph
-pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> Buchi {
-    let mut buchi = Buchi::new();
+pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> GeneralBuchi {
+    let mut buchi = GeneralBuchi::new();
 
     for n in result.iter() {
         let mut buchi_node = BuchiNode::new(n.id.clone());

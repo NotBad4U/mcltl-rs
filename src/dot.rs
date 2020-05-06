@@ -1,4 +1,4 @@
-use crate::{buchi::Buchi, expression::LTLExpression};
+use crate::{buchi::GeneralBuchi as Buchi, expression::LTLExpression};
 use dot;
 use std::io::{Result as IOResult, Write};
 
@@ -31,7 +31,7 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for Buchi {
             .iter()
             .any(|bns| bns.iter().any(|bn| bn.id == *n));
 
-        let is_an_init_state = self.init_states.iter().any(|bn| bn.id == *n);
+        let _is_an_init_state = self.init_states.iter().any(|bn| bn.id == *n);
 
         if is_an_accepting_state {
             Some(dot::LabelText::LabelStr("doublecircle".into()))
