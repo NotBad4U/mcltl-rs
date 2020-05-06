@@ -1,4 +1,4 @@
-use crate::{buchi::Buchi, LTLExpression};
+use crate::{buchi::Buchi, expression::LTLExpression};
 use dot;
 use std::io::{Result as IOResult, Write};
 
@@ -13,14 +13,16 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for Buchi {
     fn graph_id(&'a self) -> dot::Id<'a> {
         dot::Id::new("buchi").unwrap()
     }
+
     fn node_id(&'a self, n: &Node) -> dot::Id<'a> {
         dot::Id::new(format!("N{}", n)).unwrap()
     }
+
     fn node_label<'b>(&'b self, n: &Node) -> dot::LabelText<'b> {
         dot::LabelText::LabelStr(format!("{}", n).into())
     }
     fn edge_label<'b>(&'b self, e: &Edge) -> dot::LabelText<'b> {
-        dot::LabelText::LabelStr(format!("{}", e.1)).into()
+        dot::LabelText::LabelStr(format!("{}", e.1).into())
     }
 
     fn node_shape<'b>(&'b self, n: &Node) -> Option<dot::LabelText<'b>> {
@@ -29,14 +31,12 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for Buchi {
             .iter()
             .any(|bns| bns.iter().any(|bn| bn.id == *n));
 
-        let is_an_init_state = self
-            .init_states
-            .iter()
-            .any(|bn| bn.id == *n);
+        let is_an_init_state = self.init_states.iter().any(|bn| bn.id == *n);
 
         if is_an_accepting_state {
             Some(dot::LabelText::LabelStr("doublecircle".into()))
-        }//} else if is_an_init_state {
+        }
+        //} else if is_an_init_state {
         //    Some(dot::LabelText::LabelStr("point".into()))
         //}
         else {
@@ -71,8 +71,8 @@ impl<'a> dot::GraphWalk<'a, Node, Edge<'a>> for Buchi {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::automata::create_graph;
     use crate::buchi::extract_buchi;
-    use crate::create_graph;
 
     #[test]
     fn it_should_gen_dot() {
