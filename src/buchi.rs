@@ -246,12 +246,41 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> GeneralBuchi {
 /// q'0 = ( q0,1 )
 /// ∆' = { ( (q,i), a, (q',j) ) | (q,a,q') ∈ ∆ and if q ∈ Fi then j=((i+1) mod n) else j=i }
 /// F'=F1× {1}
-pub fn ba_from_GBA(general_buchi: Buchi) -> Buchi {
-    let ba = Buchi::new();
+pub fn ba_from_gba(general_buchi: GeneralBuchi) -> Buchi {
+    let mut ba = Buchi::new();
 
-    for accepting_states in general_buchi.accepting_states.iter() {
+    for (i, accepting_states) in general_buchi.accepting_states.iter().enumerate() {
         for n in general_buchi.adj_list.iter() {
-            //let buchi_node = BuchiNode::new();
+            let mut buchi_node = BuchiNode::new(format!("{}{}", n.id, i));
+            buchi_node.labels = n.labels.clone();
+            ba.adj_list.push(buchi_node.clone());
+
+            if accepting_states.iter().any(|s| s.id == n.id) && i == 0 {
+                ba.accepting_states.push(buchi_node);
+            }
+        }
+    }
+
+    for (i, accepting_states) in general_buchi.accepting_states.iter().enumerate() {
+        for n in general_buchi.adj_list.iter() {
+            let mut new_adjs = Vec::new();
+
+            for a in n.adj.iter() {
+                let id = if accepting_states.iter().any(|s| s.id == n.id) {
+                    format!("{}{}", &a.id, i + 1 % general_buchi.accepting_states.len())
+                } else {
+                    format!("{}{}", &a.id, i + 1 % general_buchi.accepting_states.len())
+                };
+
+                let node = ba.get_node(id.as_str());
+                if let Some(node) = node {
+                    new_adjs.push(node.clone());
+                }
+            }
+
+            if let Some(node) = ba.get_node_mut(&format!("{}{}", n.id, i)) {
+                node.adj = new_adjs;
+            }
         }
     }
 
@@ -279,6 +308,34 @@ mod tests {
         assert_eq!(1, buchi.accepting_states.len());
         assert_eq!(2, buchi.init_states.len());
         assert_eq!(4, buchi.adj_list.len());
+    }
+
+    #[test]
+    fn it_should_convert_gba_into_ba() {
+        // Fp1 U Gp2
+        let ltl_expr = LTLExpression::U(
+            Box::new(LTLExpression::Literal("p".to_owned())),
+            Box::new(LTLExpression::Literal("q".to_owned())),
+        );
+
+        let nodes_result = create_graph(ltl_expr.clone());
+        let gbuchi = extract_buchi(nodes_result, ltl_expr);
+
+        let buchi = ba_from_gba(gbuchi);
+
+        println!("{:?}", buchi.accepting_states);
+
+        for a in buchi.adj_list.iter() {
+            println!("{}", a.id);
+            for adj in a.adj.iter() {
+                println!("adj={}", adj.id);
+                println!("labels={:?}", adj.labels);
+            }
+
+            println!("labels{:?}\n", a.labels);
+        }
+
+        assert_eq!(2, buchi.accepting_states.len());
     }
 
     #[test]
