@@ -8,7 +8,7 @@ type Literal = String;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct World {
-    pub id: usize,
+    pub id: String,
     pub assignement: Map<Literal, bool>,
 }
 
@@ -31,13 +31,13 @@ impl World {
 
 #[derive(Debug, Clone)]
 pub struct KripkeStructure {
-    pub inits: Vec<usize>, // s0
+    pub inits: Vec<String>, // s0
     pub worlds: Vec<World>,
     pub relations: Vec<(World, World)>,
 }
 
 impl KripkeStructure {
-    pub fn new(inits: Vec<usize>) -> Self {
+    pub fn new(inits: Vec<String>) -> Self {
         Self {
             inits,
             worlds: Vec::new(),
@@ -69,10 +69,10 @@ impl KripkeStructure {
     /// init ->a q iff q ∈ S0 and L(q) = a
     /// ```
     pub fn into_buchi(&self) -> Buchi {
-        let mut id_cnt = INIT_NODE_ID + 1; // we reserve this ID for the Init node.
+        let mut id_cnt = 1; // we reserve 0 for the initial node.
         let mut buchi = Buchi::new();
 
-        let mut buchi_nodes_adj: Map<usize, BuchiNode> = Map::new();
+        let mut buchi_nodes_adj: Map<String, BuchiNode> = Map::new();
 
         // build the transitions
         for (w1, w2) in self.relations.iter() {
@@ -88,49 +88,49 @@ impl KripkeStructure {
                     }
                 }
                 (Some(bn_w1), None) => {
-                    let mut bn_w2 = BuchiNode::new(id_cnt);
+                    let mut bn_w2 = BuchiNode::new(format!("n{}", id_cnt));
                     id_cnt = id_cnt + 1;
 
                     bn_w2.labels.append(&mut w1.assignement_into_ltle());
 
-                    buchi_nodes_adj.insert(bn_w2.id, bn_w2.clone());
+                    buchi_nodes_adj.insert(bn_w2.id.clone(), bn_w2.clone());
                     if let Some(bn1) = buchi_nodes_adj.get_mut(&bn_w1.id) {
                         (*bn1).adj.push(bn_w2);
                     }
                 }
                 (None, Some(mut bn_w2)) => {
-                    let mut bn_w1 = BuchiNode::new(id_cnt);
+                    let mut bn_w1 = BuchiNode::new(format!("n{}", id_cnt));
                     id_cnt = id_cnt + 1;
 
                     bn_w2.labels.append(&mut w1.assignement_into_ltle());
 
                     bn_w1.adj.push(bn_w2.clone());
-                    buchi_nodes_adj.insert(bn_w1.id, bn_w1);
+                    buchi_nodes_adj.insert(bn_w1.id.clone(), bn_w1);
                 }
                 (None, None) => {
-                    let mut bn_w1 = BuchiNode::new(id_cnt);
+                    let mut bn_w1 = BuchiNode::new(format!("n{}", id_cnt));
                     id_cnt = id_cnt + 1;
-                    let mut bn_w2 = BuchiNode::new(id_cnt);
+                    let mut bn_w2 = BuchiNode::new(format!("n{}", id_cnt));
                     id_cnt = id_cnt + 1;
 
                     bn_w2.labels.append(&mut w1.assignement_into_ltle());
 
                     bn_w1.adj.push(bn_w2.clone());
-                    buchi_nodes_adj.insert(bn_w1.id, bn_w1);
-                    buchi_nodes_adj.insert(bn_w2.id, bn_w2);
+                    buchi_nodes_adj.insert(bn_w1.id.clone(), bn_w1);
+                    buchi_nodes_adj.insert(bn_w2.id.clone(), bn_w2);
                 }
             }
         }
 
         // build the Initial state and his transitions
-        let mut init_node = BuchiNode::new(INIT_NODE_ID);
+        let mut init_node = BuchiNode::new(INIT_NODE_ID.to_string());
 
         for id in self.inits.iter() {
             if let Some(node) = buchi_nodes_adj.get(id) {
                 init_node.adj.push(node.clone());
             }
         }
-        buchi_nodes_adj.insert(0, init_node.clone());
+        buchi_nodes_adj.insert(INIT_NODE_ID.into(), init_node.clone());
 
         buchi.accepting_states = vec![buchi_nodes_adj.iter().map(|(_, v)| v.clone()).collect()];
         buchi.adj_list = buchi_nodes_adj.into_iter().map(|(_, v)| v).collect();
@@ -163,10 +163,10 @@ mod test_kripke {
 
     #[test]
     fn it_should_compute_NBA_from_Kripke_struct() {
-        let mut ks = KripkeStructure::new(vec![1, 2]);
+        let mut ks = KripkeStructure::new(vec!["n1".into(), "n2".into()]);
 
         let w1 = World {
-            id: 1,
+            id: "n1".to_string(),
             assignement: hashmap! {
                 "p".to_string() => true,
                 "q".to_string() => true,
@@ -174,7 +174,7 @@ mod test_kripke {
         };
 
         let w2 = World {
-            id: 2,
+            id: "n2".to_string(),
             assignement: hashmap! {
                 "p".to_string() => true,
                 "q".to_string() => false,
@@ -182,7 +182,7 @@ mod test_kripke {
         };
 
         let w3 = World {
-            id: 3,
+            id: "n3".to_string(),
             assignement: hashmap! {
                 "p".to_string() => false,
                 "q".to_string() => true,

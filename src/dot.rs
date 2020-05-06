@@ -2,8 +2,8 @@ use crate::{buchi::Buchi, expression::LTLExpression};
 use dot;
 use std::io::{Result as IOResult, Write};
 
-type Node = usize;
-type Edge<'a> = (usize, LTLExpression, usize);
+type Node = String;
+type Edge<'a> = (String, LTLExpression, String);
 
 pub fn render_to<W: Write>(buchi: Buchi, output: &mut W) -> IOResult<()> {
     dot::render(&buchi, output)
@@ -47,24 +47,25 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for Buchi {
 
 impl<'a> dot::GraphWalk<'a, Node, Edge<'a>> for Buchi {
     fn nodes(&self) -> dot::Nodes<'a, Node> {
-        self.adj_list.iter().map(|adj| adj.id).collect()
+        self.adj_list.iter().map(|adj| adj.id.clone()).collect()
     }
+
     fn edges(&'a self) -> dot::Edges<'a, Edge<'a>> {
         let mut edges = vec![];
         for source in self.adj_list.iter() {
             for target in source.adj.iter() {
                 let label = target.labels.get(0).unwrap_or(&LTLExpression::True).clone();
-                edges.push((source.id, label, target.id));
+                edges.push((source.id.clone(), label, target.id.clone()));
             }
         }
 
         edges.into()
     }
     fn source(&self, e: &Edge) -> Node {
-        e.0
+        e.0.clone()
     }
     fn target(&self, e: &Edge) -> Node {
-        e.2
+        e.2.clone()
     }
 }
 

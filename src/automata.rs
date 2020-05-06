@@ -4,13 +4,13 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::expression::LTLExpression;
 
-pub const INIT_NODE_ID: usize = 0;
+pub const INIT_NODE_ID: &str = "INIT";
 
 static NODE_NAME_COUNTER: AtomicUsize = AtomicUsize::new(1);
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Node {
-    pub id: usize,
+    pub id: String,
     pub incoming: Vec<Node>,
     pub next: Vec<LTLExpression>,
     pub oldf: Vec<LTLExpression>,
@@ -18,7 +18,7 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(id: usize) -> Self {
+    pub fn new(id: String) -> Self {
         Self {
             id: id,
             incoming: vec![],
@@ -29,7 +29,7 @@ impl Node {
     }
 
     pub fn new2(
-        id: usize,
+        id: String,
         incoming: Vec<Node>,
         oldf: Vec<LTLExpression>,
         newf: Vec<LTLExpression>,
@@ -94,16 +94,10 @@ macro_rules! set {
 pub fn create_graph(f: LTLExpression) -> Vec<Node> {
     let new_begin = vec![f];
 
-    let init = Node::new(INIT_NODE_ID);
+    let init = Node::new(INIT_NODE_ID.to_string());
     let incoming = vec![init];
 
-    let n = Node::new2(
-        NODE_NAME_COUNTER.fetch_add(1, Ordering::SeqCst),
-        incoming,
-        vec![],
-        new_begin,
-        vec![],
-    );
+    let n = Node::new2(new_name(), incoming, vec![], new_begin, vec![]);
     let nodeset = vec![];
 
     expand(n, nodeset)
@@ -124,13 +118,7 @@ fn expand<'a>(mut node: Node, mut nodeset: Vec<Node>) -> Vec<Node> {
         let next = vec![];
         let newfs = node.next.clone();
         let oldfs = vec![];
-        let new_node = Node::new2(
-            NODE_NAME_COUNTER.fetch_add(1, Ordering::SeqCst),
-            incoming,
-            oldfs,
-            newfs,
-            next,
-        );
+        let new_node = Node::new2(new_name(), incoming, oldfs, newfs, next);
 
         return expand(new_node, nodeset);
     } else {
@@ -164,13 +152,7 @@ fn expand<'a>(mut node: Node, mut nodeset: Vec<Node>) -> Vec<Node> {
                 let mut oldfs1 = node.oldf.clone();
                 oldfs1.push(f.clone());
 
-                let node1 = Node::new2(
-                    NODE_NAME_COUNTER.fetch_add(1, Ordering::SeqCst),
-                    incoming1,
-                    oldfs1,
-                    newfs1,
-                    next1,
-                );
+                let node1 = Node::new2(new_name(), incoming1, oldfs1, newfs1, next1);
 
                 let incoming2 = node.incoming.clone();
                 let next2 = node.next.clone();
@@ -183,13 +165,7 @@ fn expand<'a>(mut node: Node, mut nodeset: Vec<Node>) -> Vec<Node> {
                 let mut oldfs2 = node.oldf.clone();
                 oldfs2.push(f.clone());
 
-                let node2 = Node::new2(
-                    NODE_NAME_COUNTER.fetch_add(1, Ordering::SeqCst),
-                    incoming2,
-                    oldfs2,
-                    newfs2,
-                    next2,
-                );
+                let node2 = Node::new2(new_name(), incoming2, oldfs2, newfs2, next2);
 
                 return expand(node2, expand(node1, nodeset));
             }
@@ -214,6 +190,11 @@ fn new2(ltle: LTLExpression) -> Set<LTLExpression> {
         LTLExpression::Or(f1, _) => set! { f1.as_ref().clone() },
         _ => set! {},
     }
+}
+
+fn new_name() -> String {
+    let n = NODE_NAME_COUNTER.fetch_add(1, Ordering::SeqCst);
+    format!("n{}", n)
 }
 
 //fn next1(ltle: LTLExpression) -> Set<LTLExpression> {

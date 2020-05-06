@@ -7,13 +7,13 @@ use crate::{
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct BuchiNode {
-    pub id: usize,
+    pub id: String,
     pub labels: Vec<LTLExpression>,
     pub adj: Vec<BuchiNode>,
 }
 
 impl BuchiNode {
-    pub fn new(id: usize) -> Self {
+    pub fn new(id: String) -> Self {
         Self {
             id,
             labels: Vec::new(),
@@ -45,7 +45,7 @@ impl fmt::Display for BuchiNode {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Buchi {
-    pub states: Vec<usize>,
+    pub states: Vec<String>,
     pub accepting_states: Vec<Vec<BuchiNode>>,
     pub init_states: Vec<BuchiNode>,
     pub adj_list: Vec<BuchiNode>,
@@ -87,7 +87,7 @@ impl Buchi {
         }
     }
 
-    pub fn get_node(&self, name: usize) -> Option<BuchiNode> {
+    pub fn get_node(&self, name: &str) -> Option<BuchiNode> {
         for adj in self.adj_list.iter() {
             if adj.id == name {
                 return Some(adj.clone());
@@ -97,7 +97,7 @@ impl Buchi {
         None
     }
 
-    pub fn get_node_mut(&mut self, name: usize) -> Option<&mut BuchiNode> {
+    pub fn get_node_mut(&mut self, name: &str) -> Option<&mut BuchiNode> {
         for adj in self.adj_list.iter_mut() {
             if adj.id == name {
                 return Some(adj);
@@ -138,7 +138,7 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> Buchi {
 
     for n in result.iter() {
         let mut buchi_node = BuchiNode::new(n.id.clone());
-        buchi.states.push(n.id);
+        buchi.states.push(n.id.clone());
 
         for l in n.oldf.iter() {
             match l {
@@ -156,14 +156,14 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> Buchi {
     let mut initial_states = Vec::new();
 
     for n in result.iter() {
-        let buchi_node = buchi.get_node(n.id).unwrap();
+        let buchi_node = buchi.get_node(&n.id).unwrap();
 
         for k in n.incoming.iter() {
-            if k.id == INIT_NODE_ID {
+            if k.id == INIT_NODE_ID.to_string() {
                 initial_states.push(buchi_node.clone());
             } else {
                 buchi
-                    .get_node_mut(k.id)
+                    .get_node_mut(&k.id)
                     .unwrap()
                     .adj
                     .push(buchi_node.clone());
@@ -171,8 +171,8 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> Buchi {
         }
     }
 
-    let mut init_state = BuchiNode::new(INIT_NODE_ID);
-    buchi.states.push(INIT_NODE_ID);
+    let mut init_state = BuchiNode::new(INIT_NODE_ID.to_string());
+    buchi.states.push(INIT_NODE_ID.to_string());
     init_state.adj = initial_states.clone();
     buchi.adj_list.push(init_state);
     buchi.init_states = initial_states;
@@ -185,7 +185,7 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> Buchi {
         for n in result.iter() {
             match f {
                 LTLExpression::U(_, ref f2) if !n.oldf.contains(&f) || n.oldf.contains(f2) => {
-                    if let Some(node) = buchi.get_node(n.id) {
+                    if let Some(node) = buchi.get_node(&n.id) {
                         accepting_states.push(node);
                     }
                 }
@@ -197,6 +197,26 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> Buchi {
     }
 
     buchi
+}
+
+/// Multiple sets of states in acceptance condition can be translated into one set of states
+/// by an automata construction, which is known as "counting construction".
+/// Let's say A = (Q,Σ,∆,q0,{F1,...,Fn}) is a GBA, where F1,...,Fn are sets of accepting states
+/// then the equivalent Büchi automaton is A' = (Q', Σ, ∆',q'0,F'), where
+/// Q' = Q × {1,...,n}
+/// q'0 = ( q0,1 )
+/// ∆' = { ( (q,i), a, (q',j) ) | (q,a,q') ∈ ∆ and if q ∈ Fi then j=((i+1) mod n) else j=i }
+/// F'=F1× {1}
+pub fn ba_from_GBA(general_buchi: Buchi) -> Buchi {
+    let ba = Buchi::new();
+
+    for accepting_states in general_buchi.accepting_states.iter() {
+        for n in general_buchi.adj_list.iter() {
+            //let buchi_node = BuchiNode::new();
+        }
+    }
+
+    ba
 }
 
 #[cfg(test)]
