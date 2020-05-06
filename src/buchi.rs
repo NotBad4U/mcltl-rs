@@ -1,5 +1,9 @@
-use crate::{LTLExpression, Node, INIT_NODE_ID};
 use std::fmt;
+
+use crate::{
+    automata::{Node, INIT_NODE_ID},
+    expression::LTLExpression,
+};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct BuchiNode {
@@ -41,6 +45,7 @@ impl fmt::Display for BuchiNode {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Buchi {
+    pub states: Vec<usize>,
     pub accepting_states: Vec<Vec<BuchiNode>>,
     pub init_states: Vec<BuchiNode>,
     pub adj_list: Vec<BuchiNode>,
@@ -60,7 +65,7 @@ impl fmt::Display for Buchi {
             .init_states
             .iter()
             .fold("".to_string(), |acc, init| acc + &format!("{},", init.id));
-        buff.push_str(&format!("{}init_states = [{}]\n",&buff, init_states));
+        buff.push_str(&format!("{}init_states = [{}]\n", &buff, init_states));
 
         let adjs = self
             .adj_list
@@ -75,6 +80,7 @@ impl fmt::Display for Buchi {
 impl Buchi {
     pub fn new() -> Self {
         Self {
+            states: Vec::new(),
             accepting_states: Vec::new(),
             init_states: Vec::new(),
             adj_list: Vec::new(),
@@ -102,7 +108,10 @@ impl Buchi {
     }
 }
 
-fn extract_unitl_subf(f: &LTLExpression, mut sub_formulas: Vec<LTLExpression>) -> Vec<LTLExpression> {
+fn extract_unitl_subf(
+    f: &LTLExpression,
+    mut sub_formulas: Vec<LTLExpression>,
+) -> Vec<LTLExpression> {
     match f {
         LTLExpression::True => sub_formulas,
         LTLExpression::False => sub_formulas,
@@ -114,6 +123,7 @@ fn extract_unitl_subf(f: &LTLExpression, mut sub_formulas: Vec<LTLExpression>) -
             sub_formulas.push(LTLExpression::U(f1.clone(), f2.clone()));
             extract_unitl_subf(f2, extract_unitl_subf(f1, sub_formulas))
         }
+        LTLExpression::R(f1, f2) => extract_unitl_subf(f1, extract_unitl_subf(f2, sub_formulas)),
         LTLExpression::V(f1, f2) => extract_unitl_subf(f1, extract_unitl_subf(f2, sub_formulas)),
         e => panic!(
             "unsuported operator, you should simplify the expression: {}",
@@ -128,6 +138,7 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> Buchi {
 
     for n in result.iter() {
         let mut buchi_node = BuchiNode::new(n.id.clone());
+        buchi.states.push(n.id);
 
         for l in n.oldf.iter() {
             match l {
@@ -161,6 +172,7 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> Buchi {
     }
 
     let mut init_state = BuchiNode::new(INIT_NODE_ID);
+    buchi.states.push(INIT_NODE_ID);
     init_state.adj = initial_states.clone();
     buchi.adj_list.push(init_state);
     buchi.init_states = initial_states;
@@ -187,14 +199,15 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> Buchi {
     buchi
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::create_graph;
+    use crate::automata::create_graph;
+    use crate::expression::rewrite;
 
     #[test]
     fn it_should_extract_buchi_from_nodeset() {
+        // p U q
         let ltl_expr = LTLExpression::U(
             Box::new(LTLExpression::Literal("p".to_owned())),
             Box::new(LTLExpression::Literal("q".to_owned())),
@@ -203,10 +216,64 @@ mod tests {
         let nodes_result = create_graph(ltl_expr.clone());
         let buchi = extract_buchi(nodes_result, ltl_expr);
 
-        println!("{}", buchi);
-
+        assert_eq!(4, buchi.states.len());
         assert_eq!(1, buchi.accepting_states.len());
         assert_eq!(2, buchi.init_states.len());
         assert_eq!(4, buchi.adj_list.len());
+    }
+
+    #[test]
+    fn it_should_extract_buchi_from_nodeset2() {
+        // p1 U (p2 U p3)
+        let ltl_expr = LTLExpression::U(
+            Box::new(LTLExpression::Literal("p1".to_owned())),
+            Box::new(LTLExpression::U(
+                Box::new(LTLExpression::Literal("p2".to_owned())),
+                Box::new(LTLExpression::Literal("p3".to_owned())),
+            )),
+        );
+
+        let nodes_result = create_graph(ltl_expr.clone());
+        let buchi = extract_buchi(nodes_result, ltl_expr);
+
+        assert_eq!(7, buchi.states.len());
+    }
+
+    #[test]
+    fn it_should_extract_buchi_from_nodeset3() {
+        // Fp1 U Gp2
+        let ltl_expr = LTLExpression::U(
+            Box::new(LTLExpression::F(Box::new(LTLExpression::Literal(
+                "p".to_owned(),
+            )))),
+            Box::new(LTLExpression::G(Box::new(LTLExpression::Literal(
+                "q".to_owned(),
+            )))),
+        );
+
+        let simplified_expr = rewrite(ltl_expr);
+
+        let nodes_result = create_graph(simplified_expr.clone());
+        let buchi = extract_buchi(nodes_result, simplified_expr);
+
+        assert_eq!(10, buchi.states.len());
+    }
+
+    #[test]
+    fn it_should_extract_buchi_from_nodeset4() {
+        // Fp1 U Gp2
+        let ltl_expr = LTLExpression::U(
+            Box::new(LTLExpression::G(Box::new(LTLExpression::Literal(
+                "p1".to_owned(),
+            )))),
+            Box::new(LTLExpression::Literal("p2".to_owned())),
+        );
+
+        let simplified_expr = rewrite(ltl_expr);
+
+        let nodes_result = create_graph(simplified_expr.clone());
+        let buchi = extract_buchi(nodes_result, simplified_expr);
+
+        assert_eq!(6, buchi.states.len());
     }
 }
