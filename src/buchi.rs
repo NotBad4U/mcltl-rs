@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use crate::{
@@ -5,7 +6,7 @@ use crate::{
     expression::LTLExpression,
 };
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct BuchiNode {
     pub id: String,
     pub labels: Vec<LTLExpression>,
@@ -240,7 +241,7 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> GeneralBuchi {
 
 /// Multiple sets of states in acceptance condition can be translated into one set of states
 /// by an automata construction, which is known as "counting construction".
-/// Let's say A = (Q,Σ,∆,q0,{F1,...,Fn}) is a GBA, where F1,...,Fn are sets of accepting states
+/// Let's say A = (Q, Σ, ∆, q0, {F1,...,Fn}) is a GBA, where F1,...,Fn are sets of accepting states
 /// then the equivalent Büchi automaton is A' = (Q', Σ, ∆',q'0,F'), where
 /// Q' = Q × {1,...,n}
 /// q'0 = ( q0,1 )
@@ -287,10 +288,89 @@ pub fn ba_from_gba(general_buchi: GeneralBuchi) -> Buchi {
     ba
 }
 
+/// Product of the program and the property
+/// Let A1 = (S1 ,Σ1 , ∆1 ,I1 ,F1)
+/// and  A2 = (S2 ,Σ2 , ∆2 ,I2 ,F2 ) be two automata.
+///
+/// We define A1 × A2 , as the quituple:
+/// (S,Σ,∆,I,F) := (S1 × S2, Σ1 × Σ2, ∆1 × ∆2, I1 × I2, F1 × F2),
+///
+/// where where ∆ is a function from S × Σ to P(S1) × P(S2) ⊆ P(S),
+///
+/// given by ∆((q1, q2), a, (q1', q2')) ∈ ∆
+/// iff (q1, a, q1') ∈ ∆1
+/// and (q2, a, q2') ∈ ∆2
+pub fn product_automata(program: Buchi, property: Buchi) -> Buchi {
+    let mut product_buchi = Buchi::new();
+
+    // make S1 × S2
+    let mut product_adjs = HashMap::new();
+
+    for n1 in program.adj_list.iter() {
+        for n2 in property.adj_list.iter() {
+            let product_id = format!("{}_{}", n1.id, n2.id);
+            let product_node = BuchiNode::new(product_id);
+
+            // F := { F1 x Q2, Q1 x F2 }
+            if property
+                .accepting_states
+                .iter()
+                .any(|b| b.id == product_node.id)
+            {
+                product_buchi.accepting_states.push(product_node.clone());
+            }
+
+            product_adjs.insert((n1.clone(), n2.clone()), product_node);
+        }
+    }
+
+    // transition function ∆
+    for ((q1, q1_prime), _) in product_adjs.clone().iter() {
+        for ((q2, q2_prime), curr_node) in product_adjs.clone().iter() {
+            // collect all labels
+            let mut labels = HashSet::new();
+            labels.extend(q1.labels.iter());
+            labels.extend(q2.labels.iter());
+
+            for label in labels {
+                // check if (q1, a, q1') ∈ ∆1
+                // and check if (q2, a, q2') ∈ ∆2
+                if q1
+                    .adj
+                    .iter()
+                    .any(|b| b.id == q2.id && b.labels.contains(&label))
+                    && q1_prime
+                        .adj
+                        .iter()
+                        .any(|b| b.id == q2_prime.id && b.labels.contains(&label))
+                {
+                    if let Some(product_node) =
+                        product_adjs.get_mut(&(q1.clone(), q1_prime.clone()))
+                    {
+                        let mut tmp_node = curr_node.clone();
+                        tmp_node.labels = vec![label.clone()];
+                        (*product_node).adj.push(tmp_node);
+                    }
+                }
+            }
+        }
+    }
+
+    for (_, node) in product_adjs.into_iter() {
+        product_buchi.adj_list.push(node);
+    }
+
+    // I := I1 x I2
+    product_buchi.init_states = vec![product_buchi.get_node("INIT_INIT").unwrap()];
+
+    product_buchi
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::automata::create_graph;
+    use crate::dot;
     use crate::expression::rewrite;
 
     #[test]
@@ -336,6 +416,82 @@ mod tests {
         }
 
         assert_eq!(2, buchi.accepting_states.len());
+    }
+
+    #[test]
+    fn it_should_do_product_of_automata() {
+        let mut buchi1 = Buchi::new();
+        let mut r1 = BuchiNode::new("INIT".into());
+        r1.labels.push(LTLExpression::Literal("a".into()));
+        r1.labels.push(LTLExpression::Literal("b".into()));
+        let mut r2 = BuchiNode::new("r2".into());
+        r2.labels.push(LTLExpression::Literal("a".into()));
+        r2.labels.push(LTLExpression::Literal("b".into()));
+
+        r1.adj.push(BuchiNode {
+            id: "INIT".into(),
+            labels: vec![LTLExpression::Literal("a".into())],
+            adj: vec![],
+        });
+        r1.adj.push(BuchiNode {
+            id: "r2".into(),
+            labels: vec![LTLExpression::Literal("b".into())],
+            adj: vec![],
+        });
+
+        r2.adj.push(BuchiNode {
+            id: "r2".into(),
+            labels: vec![LTLExpression::Literal("b".into())],
+            adj: vec![],
+        });
+        r2.adj.push(BuchiNode {
+            id: "INIT".into(),
+            labels: vec![LTLExpression::Literal("a".into())],
+            adj: vec![],
+        });
+
+        buchi1.accepting_states.push(r1.clone());
+        buchi1.init_states.push(r1.clone());
+        buchi1.adj_list = vec![r1, r2];
+
+        let mut buchi2 = Buchi::new();
+        let mut q1 = BuchiNode::new("INIT".into());
+        q1.labels.push(LTLExpression::Literal("a".into()));
+        q1.labels.push(LTLExpression::Literal("b".into()));
+        let mut q2 = BuchiNode::new("q2".into());
+        q2.labels.push(LTLExpression::Literal("a".into()));
+        q2.labels.push(LTLExpression::Literal("b".into()));
+
+        q1.adj.push(BuchiNode {
+            id: "INIT".into(),
+            labels: vec![LTLExpression::Literal("b".into())],
+            adj: vec![],
+        });
+        q1.adj.push(BuchiNode {
+            id: "q2".into(),
+            labels: vec![LTLExpression::Literal("a".into())],
+            adj: vec![],
+        });
+
+        q2.adj.push(BuchiNode {
+            id: "q2".into(),
+            labels: vec![LTLExpression::Literal("a".into())],
+            adj: vec![],
+        });
+        q2.adj.push(BuchiNode {
+            id: "INIT".into(),
+            labels: vec![LTLExpression::Literal("b".into())],
+            adj: vec![],
+        });
+
+        buchi2.accepting_states.push(q1.clone());
+        buchi2.init_states.push(q1.clone());
+        buchi2.adj_list = vec![q1, q2];
+
+        let buchi_product = product_automata(buchi1, buchi2);
+
+        assert_eq!(4, buchi_product.adj_list.len());
+        assert_eq!(1, buchi_product.init_states.len());
     }
 
     #[test]
