@@ -15,7 +15,7 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for Buchi {
     }
 
     fn node_id(&'a self, n: &Node) -> dot::Id<'a> {
-        dot::Id::new(format!("N{}", n)).unwrap()
+        dot::Id::new(format!("{}", n)).unwrap()
     }
 
     fn node_label<'b>(&'b self, n: &Node) -> dot::LabelText<'b> {
