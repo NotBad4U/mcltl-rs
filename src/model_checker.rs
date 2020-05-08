@@ -76,6 +76,8 @@ pub fn emptiness(product_buchi: Buchi) -> Result<(), (Vec<BuchiNode>, Vec<BuchiN
 mod test_emptiness {
     use super::*;
 
+    use crate::buchi;
+
     use crate::expression::LTLExpression;
 
     #[test]
@@ -200,22 +202,14 @@ mod test_emptiness {
 
     #[test]
     fn it_should_found_emptiness() {
-        let mut buchi = Buchi::new();
-
-        let mut q0 = BuchiNode::new("q0".into());
-        let q1 = BuchiNode::new("q1".into());
-
-        q0.adj.push(BuchiNode {
-            id: "q1".into(),
-            labels: vec![LTLExpression::Literal("a".into())],
-            adj: vec![],
-        });
-
-        buchi.adj_list.push(q0.clone());
-        buchi.adj_list.push(q1.clone());
-
-        buchi.accepting_states.push(q1);
-        buchi.init_states.push(q0);
+        let buchi = buchi!{
+            q0
+                [LTLExpression::Literal("a".into())] => q1
+            q1
+            ===
+            init = [q0]
+            accepting = [q0, q1]
+        };
 
         let res = emptiness(buchi);
 
