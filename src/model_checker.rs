@@ -1,14 +1,18 @@
 use crate::buchi::{Buchi, BuchiNode};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 /// return true iff there exists a path to a cycle containing an accepting state
-pub fn emptiness(product_buchi: Buchi) -> bool {
-    let mut stack: Vec<BuchiNode> = Vec::from([product_buchi.init_states.first().unwrap().clone()]); // S := {s0}
-    let mut reachable: VecDeque<BuchiNode> = VecDeque::new(); // Q := {}
-    let mut visited: HashMap<&str, bool> = HashMap::new(); // M := 0
+pub fn emptiness(product_buchi: Buchi) -> Result<(), (Vec<BuchiNode>, Vec<BuchiNode>)> {
+    let mut stack1: Vec<BuchiNode> =
+        Vec::from([product_buchi.init_states.first().unwrap().clone()]); // S := {s0}
+    let mut stack2: Vec<BuchiNode> = Vec::new(); // S2 := ∅
+
+    let mut visited1: HashMap<&str, bool> = HashMap::new(); // M1 := 0
+    let mut visited2: HashMap<&str, bool> = HashMap::new(); // M2 := 0
 
     for n in product_buchi.adj_list.iter() {
-        visited.insert(n.id.as_ref(), false);
+        visited1.insert(n.id.as_ref(), false);
+        visited2.insert(n.id.as_ref(), false);
     }
 
     let mut succ: HashMap<String, BuchiNode> = HashMap::new();
@@ -17,80 +21,55 @@ pub fn emptiness(product_buchi: Buchi) -> bool {
     }
 
     //NOTE: All unwrap usages here should be safe because we work on known sets and that does not change.
-    while !stack.is_empty() {
-        let v = stack.last().unwrap().clone();
+    while !stack1.is_empty() {
+        let x = stack1.last().unwrap().clone();
 
-        let mut all_succ_reachable = true;
+        // if there is a y in succ(x) with M1[h(y)] = 0
+        let exist_y = x.adj.iter().any(|y| visited1[y.id.as_str()] == false);
 
-        for adj in v.adj.iter() {
-            if !visited[adj.id.as_str()] {
-                all_succ_reachable = false;
-                break;
-            }
-        }
-
-        if all_succ_reachable {
-            stack.pop();
-
-            if product_buchi.accepting_states.contains(&v) {
-                reachable.push_back(v.clone());
-            }
+        if exist_y {
+            // get first member of x
+            let succ_x = &succ[&x.id];
+            let y = succ_x.adj.first().unwrap();
+            *visited1.get_mut(y.id.as_str()).unwrap() = true;
+            stack1.push(y.clone());
         } else {
-            let succ_v = &succ[&v.id];
-            let w = succ_v
-                .adj
-                .iter()
-                .find(|a| !visited[a.id.as_str()])
-                .map(|w| succ[w.id.as_str()].clone())
-                .unwrap(); // first succ(v) with M[h(w)] = 0
-            *visited.get_mut(w.id.as_str()).unwrap() = true;
-            stack.push(w);
-        }
-    }
+            let x = stack1.pop().unwrap().clone();
 
-    stack = Vec::new();
-    visited = HashMap::new();
+            // x ∈ F
+            let x_in_f = product_buchi.accepting_states.iter().any(|f| f.id == x.id);
 
-    for n in product_buchi.adj_list.iter() {
-        visited.insert(n.id.as_ref(), false);
-    }
+            if x_in_f {
+                stack2.push(x.clone());
 
-    while let Some(f) = reachable.pop_front() {
-        stack.push(f.clone());
+                while !stack2.is_empty() {
+                    let v = stack2.last().unwrap();
 
-        while !stack.is_empty() {
-            let v = stack.last().unwrap().clone();
+                    let succ_v = &succ[&v.id];
+                    let x_in_succv = succ_v.adj.iter().any(|succ| succ.id == x.id);
+                    if x_in_succv {
+                        return Err((stack1, stack2));
+                    }
 
-            if v.adj.iter().any(|a| a.id == f.id) {
-                return false; // belongs to a nontrivial strongly connected component
-            }
-
-            let mut all_succ_reachable = true;
-
-            for adj in v.adj.iter() {
-                if !visited[adj.id.as_str()] {
-                    all_succ_reachable = false;
-                    break;
+                    if succ_v.adj.iter().all(|a| visited2[a.id.as_str()]) {
+                        stack2.pop();
+                    } else {
+                        let succ_v = &succ[&v.id];
+                        let w = succ_v
+                            .adj
+                            .iter()
+                            .find(|a| !visited2.get(a.id.as_str()).unwrap())
+                            .map(|w| succ[w.id.as_str()].clone())
+                            .unwrap(); // first succ(v) with M2[h(w)] = 0
+                        *visited2.get_mut(w.id.as_str()).unwrap() = true;
+                        stack2.push(w);
+                    }
                 }
             }
-
-            if all_succ_reachable {
-                stack.pop();
-            } else {
-                let succ_v = &succ[&v.id];
-                let w = succ_v
-                    .adj
-                    .iter()
-                    .find(|a| !visited.get(a.id.as_str()).unwrap())
-                    .map(|w| succ[w.id.as_str()].clone())
-                    .unwrap(); // first succ(v) with M[h(w)] = 0
-                *visited.get_mut(w.id.as_str()).unwrap() = true;
-                stack.push(w.clone());
-            }
         }
     }
 
-    true
+    Ok(())
 }
 
 #[cfg(test)]
@@ -157,7 +136,11 @@ mod test_emptiness {
 
         let res = emptiness(buchi);
 
-        assert_eq!(false, res);
+        assert!(res.is_err());
+
+        let stacks = res.unwrap_err();
+        assert_eq!(1, stacks.0.len());
+        assert_eq!(3, stacks.1.len());
     }
 
     #[test]
@@ -212,7 +195,7 @@ mod test_emptiness {
 
         let res = emptiness(buchi);
 
-        assert_eq!(true, res);
+        assert!(res.is_ok());
     }
 
     #[test]
@@ -236,6 +219,6 @@ mod test_emptiness {
 
         let res = emptiness(buchi);
 
-        assert_eq!(true, res);
+        assert!(res.is_ok());
     }
 }
