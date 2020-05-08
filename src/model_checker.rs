@@ -82,59 +82,22 @@ mod test_emptiness {
 
     #[test]
     fn it_should_found_non_empty() {
-        let mut buchi = Buchi::new(); // accepts a(bef )^ω
-
-        let mut q0 = BuchiNode::new("q0".into());
-        let mut q1 = BuchiNode::new("q1".into());
-        let mut q2 = BuchiNode::new("q2".into());
-        let mut q3 = BuchiNode::new("q3".into());
-        let mut q4 = BuchiNode::new("q4".into());
-
-        q0.adj.push(BuchiNode {
-            id: "q1".into(),
-            labels: vec![LTLExpression::Literal("a".into())],
-            adj: vec![],
-        });
-
-        q1.adj.push(BuchiNode {
-            id: "q2".into(),
-            labels: vec![LTLExpression::Literal("b".into())],
-            adj: vec![],
-        });
-
-        q2.adj = vec![
-            BuchiNode {
-                id: "q3".into(),
-                labels: vec![LTLExpression::Literal("e".into())],
-                adj: vec![],
-            },
-            BuchiNode {
-                id: "q4".into(),
-                labels: vec![LTLExpression::Literal("c".into())],
-                adj: vec![],
-            },
-        ];
-
-        q3.adj.push(BuchiNode {
-            id: "q1".into(),
-            labels: vec![LTLExpression::Literal("f".into())],
-            adj: vec![],
-        });
-
-        q4.adj.push(BuchiNode {
-            id: "q3".into(),
-            labels: vec![LTLExpression::Literal("d".into())],
-            adj: vec![],
-        });
-
-        buchi.adj_list.push(q0.clone());
-        buchi.adj_list.push(q1.clone());
-        buchi.adj_list.push(q2);
-        buchi.adj_list.push(q3);
-        buchi.adj_list.push(q4);
-
-        buchi.accepting_states.push(q1);
-        buchi.init_states.push(q0);
+        let buchi = buchi! {
+            q0
+                [LTLExpression::Literal("a".into())] => q1
+            q1
+                [LTLExpression::Literal("b".into())] => q2
+            q2
+                [LTLExpression::Literal("e".into())] => q3
+                [LTLExpression::Literal("c".into())] => q4 // cycle containing an accepting state
+            q3
+                [LTLExpression::Literal("f".into())] => q1
+            q4
+                [LTLExpression::Literal("d".into())] => q3
+            ===
+            init = [q0]
+            accepting = [q1]
+        };
 
         let res = emptiness(buchi);
 
@@ -147,53 +110,21 @@ mod test_emptiness {
 
     #[test]
     fn it_should_found_empty_because_the_cycle_doesnt_contain_an_accepting_state() {
-        let mut buchi = Buchi::new(); // accepts a(bef )^ω
-
-        let mut q0 = BuchiNode::new("q0".into());
-        let mut q1 = BuchiNode::new("q1".into());
-        let mut q2 = BuchiNode::new("q2".into());
-        let mut q3 = BuchiNode::new("q3".into());
-        let q4 = BuchiNode::new("q4".into());
-
-        q0.adj.push(BuchiNode {
-            id: "q1".into(),
-            labels: vec![LTLExpression::Literal("a".into())],
-            adj: vec![],
-        });
-
-        q1.adj.push(BuchiNode {
-            id: "q2".into(),
-            labels: vec![LTLExpression::Literal("b".into())],
-            adj: vec![],
-        });
-
-        q2.adj = vec![
-            BuchiNode {
-                id: "q3".into(),
-                labels: vec![LTLExpression::Literal("e".into())],
-                adj: vec![],
-            },
-            BuchiNode {
-                id: "q4".into(),
-                labels: vec![LTLExpression::Literal("c".into())],
-                adj: vec![],
-            },
-        ];
-
-        q3.adj.push(BuchiNode {
-            id: "q1".into(),
-            labels: vec![LTLExpression::Literal("f".into())],
-            adj: vec![],
-        });
-
-        buchi.adj_list.push(q0.clone());
-        buchi.adj_list.push(q1.clone());
-        buchi.adj_list.push(q2);
-        buchi.adj_list.push(q3);
-        buchi.adj_list.push(q4.clone());
-
-        buchi.accepting_states.push(q4);
-        buchi.init_states.push(q0);
+        let buchi = buchi! {
+            q0
+                [LTLExpression::Literal("a".into())] => q1
+            q1
+                [LTLExpression::Literal("b".into())] => q2
+            q2
+                [LTLExpression::Literal("e".into())] => q3
+                [LTLExpression::Literal("c".into())] => q4
+            q3
+            q4
+                [LTLExpression::Literal("d".into())] => q3
+            ===
+            init = [q0]
+            accepting = [q1]
+        };
 
         let res = emptiness(buchi);
 
@@ -202,7 +133,7 @@ mod test_emptiness {
 
     #[test]
     fn it_should_found_emptiness() {
-        let buchi = buchi!{
+        let buchi = buchi! {
             q0
                 [LTLExpression::Literal("a".into())] => q1
             q1
