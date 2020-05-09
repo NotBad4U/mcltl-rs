@@ -56,7 +56,7 @@ impl KripkeStructure {
     }
 
     /// Computing an NBA AM from a Kripke Structure M
-    /// ```
+    ///
     /// Kripke structure: M = <hS, S0, R, L, APi>
     /// into NBA: Am = <Q, Σ, δ, I, Fi>
     ///
@@ -67,7 +67,7 @@ impl KripkeStructure {
     /// Transitions:
     /// δ : q →a q' iff (q, q) ∈ R and L(q') = a
     /// init ->a q iff q ∈ S0 and L(q) = a
-    /// ```
+    ///
     pub fn into_buchi(&self) -> Buchi {
         let mut id_cnt = 1; // we reserve 0 for the initial node.
         let mut buchi = Buchi::new();
