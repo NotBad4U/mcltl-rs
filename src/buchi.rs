@@ -250,39 +250,52 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> GeneralBuchi {
 pub fn ba_from_gba(general_buchi: GeneralBuchi) -> Buchi {
     let mut ba = Buchi::new();
 
-    for (i, accepting_states) in general_buchi.accepting_states.iter().enumerate() {
+    for (i, _) in general_buchi.accepting_states.iter().enumerate() {
         for n in general_buchi.adj_list.iter() {
             let mut buchi_node = BuchiNode::new(format!("{}{}", n.id, i));
             buchi_node.labels = n.labels.clone();
-            ba.adj_list.push(buchi_node.clone());
+            ba.adj_list.push(buchi_node);
+        }
+    }
 
-            if accepting_states.iter().any(|s| s.id == n.id) && i == 0 {
-                ba.accepting_states.push(buchi_node);
+    for (i, f) in general_buchi.accepting_states.iter().enumerate() {
+        for node in general_buchi.adj_list.iter() {
+            for adj in node.adj.iter() {
+                let mut j = 0;
+
+                if f.iter().any(|n| n.id == node.id) {
+                    j = (i + 1) % general_buchi.accepting_states.len();
+                } else {
+                    j = i;
+                }
+
+                let ba_node = ba
+                    .get_node_mut(format!("{}{}", node.id, i).as_str())
+                    .unwrap();
+
+                ba_node.adj.push(BuchiNode {
+                    id: format!("{}{}", adj.id, j),
+                    labels: adj.labels.clone(),
+                    adj: vec![],
+                });
             }
         }
     }
 
-    for (i, accepting_states) in general_buchi.accepting_states.iter().enumerate() {
-        for n in general_buchi.adj_list.iter() {
-            let mut new_adjs = Vec::new();
+    // q'0 = ( q0,1 )
+    for init in general_buchi.init_states.iter() {
+        let node = ba.get_node(format!("{}0", init.id).as_str()).unwrap();
+        ba.init_states.push(node.clone());
+    }
 
-            for a in n.adj.iter() {
-                let id = if accepting_states.iter().any(|s| s.id == n.id) {
-                    format!("{}{}", &a.id, i + 1 % general_buchi.accepting_states.len())
-                } else {
-                    format!("{}{}", &a.id, i + 1 % general_buchi.accepting_states.len())
-                };
+    // F'=F1 × {1}
+    let f_1 = general_buchi.accepting_states.first().unwrap();
 
-                let node = ba.get_node(id.as_str());
-                if let Some(node) = node {
-                    new_adjs.push(node.clone());
-                }
-            }
-
-            if let Some(node) = ba.get_node_mut(&format!("{}{}", n.id, i)) {
-                node.adj = new_adjs;
-            }
-        }
+    for accepting_state in f_1.iter() {
+        let node = ba
+            .get_node(format!("{}0", accepting_state.id).as_str())
+            .unwrap();
+        ba.accepting_states.push(node);
     }
 
     ba
@@ -370,8 +383,8 @@ pub fn product_automata(program: Buchi, property: Buchi) -> Buchi {
 mod tests {
     use super::*;
     use crate::automata::create_graph;
-    use crate::dot;
     use crate::expression::rewrite;
+    use crate::gbuchi;
 
     #[test]
     fn it_should_extract_buchi_from_nodeset() {
@@ -391,7 +404,7 @@ mod tests {
     }
 
     #[test]
-    fn it_should_convert_gba_into_ba() {
+    fn it_should_convert_gba_construct_from_ltl_into_ba() {
         // Fp1 U Gp2
         let ltl_expr = LTLExpression::U(
             Box::new(LTLExpression::Literal("p".to_owned())),
@@ -403,19 +416,55 @@ mod tests {
 
         let buchi = ba_from_gba(gbuchi);
 
-        println!("{:?}", buchi.accepting_states);
-
-        for a in buchi.adj_list.iter() {
-            println!("{}", a.id);
-            for adj in a.adj.iter() {
-                println!("adj={}", adj.id);
-                println!("labels={:?}", adj.labels);
-            }
-
-            println!("labels{:?}\n", a.labels);
-        }
-
         assert_eq!(2, buchi.accepting_states.len());
+    }
+
+    #[test]
+    fn it_should_convert_gba_into_ba() {
+        let gbuchi = gbuchi! {
+            s0
+                [LTLExpression::Literal("a".into())] => s0
+                [LTLExpression::Literal("b".into())] => s1
+            s1
+                [LTLExpression::Literal("a".into())] => s0
+                [LTLExpression::Literal("b".into())] => s1
+            ===
+            init = [s0]
+            accepting = [vec![s0.clone()]]
+            accepting = [vec![s1.clone()]]
+        };
+
+        let buchi = ba_from_gba(gbuchi);
+
+        assert_eq!(1, buchi.accepting_states.len());
+        assert_eq!(4, buchi.adj_list.len());
+    }
+
+    #[test]
+    fn it_should_convert_gba_into_ba2() {
+        let gbuchi = gbuchi! {
+            q1
+               [LTLExpression::Literal("a".into())] => q3
+               [LTLExpression::Literal("b".into())] => q2
+            q2
+                [LTLExpression::Literal("b".into())] => q2
+                [LTLExpression::Literal("a".into())] => q3
+            q3
+                [LTLExpression::Literal("a".into())] => q3
+                [LTLExpression::Literal("b".into())] => q2
+            q4
+                [LTLExpression::Literal("a".into())] => q3
+                [LTLExpression::Literal("b".into())] => q2
+            ===
+            init = [q1]
+            accepting = [vec![q1.clone(), q3]]
+            accepting = [vec![q1, q2]]
+        };
+
+        let buchi = ba_from_gba(gbuchi);
+        assert_eq!(2, buchi.accepting_states.len());
+        assert_eq!(1, buchi.init_states.len());
+        assert_eq!(8, buchi.adj_list.len());
     }
 
     #[test]
