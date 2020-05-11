@@ -85,17 +85,3 @@ impl<'a> Iterator for Lexer<'a> {
         }
     }
 }
-
-impl<'a> Lexer<'a> {
-    pub fn tokenize(&mut self) -> Vec<(Token, Span)> {
-        let mut result = Vec::new();
-
-        while !self.remaining.is_empty() {
-            if let Some((token, span)) = self.next() {
-                result.push((token, span))
-            }
-        }
-
-        result
-    }
-}

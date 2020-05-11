@@ -261,7 +261,7 @@ pub fn ba_from_gba(general_buchi: GeneralBuchi) -> Buchi {
     for (i, f) in general_buchi.accepting_states.iter().enumerate() {
         for node in general_buchi.adj_list.iter() {
             for adj in node.adj.iter() {
-                let mut j = 0;
+                let j;
 
                 if f.iter().any(|n| n.id == node.id) {
                     j = (i + 1) % general_buchi.accepting_states.len();

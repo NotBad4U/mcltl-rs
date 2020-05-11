@@ -1,5 +1,5 @@
 use crate::buchi::{Buchi, BuchiNode};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap};
 
 /// return true iff there exists a path to a cycle containing an accepting state
 pub fn emptiness(product_buchi: Buchi) -> Result<(), (Vec<BuchiNode>, Vec<BuchiNode>)> {

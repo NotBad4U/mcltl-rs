@@ -77,15 +77,3 @@ impl<'a> dot::GraphWalk<'a, Node, Edge<'a>> for Buchi {
         e.2.clone()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::automata::create_graph;
-    use crate::buchi::extract_buchi;
-
-    #[test]
-    fn it_should_gen_dot() {
-        //TODO:find a test
-    }
-}

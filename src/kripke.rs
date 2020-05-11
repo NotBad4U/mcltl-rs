@@ -373,7 +373,7 @@ mod test_kripke {
     use super::*;
 
     #[test]
-    fn it_should_compute_NBA_from_Kripke_struct() {
+    fn it_should_compute_nba_from_kripke_struct() {
         let kripke = crate::kripke! {
             n1 = [ ("p", true), ("q", true) ]
             n2 = [ ("p", true), ("q", false) ]
@@ -396,7 +396,7 @@ mod test_kripke {
     }
 
     #[test]
-    fn it_should_compute_NBA_from_Kripke_struct2() {
+    fn it_should_compute_nba_from_kripke_struct2() {
         let kripke = crate::kripke! {
             n0 = [ ("p", true), ("q", false), ("r", false) ]
             n1 = [ ("p", true), ("q", true), ("r", false) ]

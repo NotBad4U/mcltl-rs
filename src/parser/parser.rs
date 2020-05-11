@@ -20,8 +20,6 @@ parser! {
     }
 
     expr: LTLExpressionSpan {
-        binexpr[b] => b,
-        atom[a] => a,
         G expr[e] => LTLExpressionSpan {
             span: span!(),
             expr: LTLExpression::G(Box::new(e.expr)),
@@ -38,6 +36,8 @@ parser! {
             span: span!(),
             expr: e.expr,
         },
+        binexpr[b] => b,
+        atom[a] => a,
     }
 
     binexpr: LTLExpressionSpan{
