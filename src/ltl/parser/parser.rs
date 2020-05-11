@@ -1,7 +1,7 @@
 use plex::parser;
 
-use crate::expression::LTLExpression;
-use crate::parser::lexer::{Span, Token, Token::*};
+use crate::ltl::expression::LTLExpression;
+use crate::ltl::parser::lexer::{Span, Token, Token::*};
 
 #[derive(Debug)]
 pub struct LTLExpressionSpan {

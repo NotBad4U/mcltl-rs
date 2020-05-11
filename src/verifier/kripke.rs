@@ -1,8 +1,8 @@
 use std::collections::HashMap as Map;
 
-use crate::automata::INIT_NODE_ID;
+use crate::ltl::automata::INIT_NODE_ID;
 use crate::buchi::{Buchi, BuchiNode};
-use crate::expression::LTLExpression;
+use crate::ltl::expression::LTLExpression;
 use plex::{lexer, parser};
 
 type Literal = String;
@@ -300,7 +300,7 @@ pub enum Expr {
 
 mod parser {
     use super::*;
-    use crate::kripke::Token::*;
+    use super::Token::*;
     use std::iter::FromIterator;
 
     parser! {

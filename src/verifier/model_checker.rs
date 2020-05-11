@@ -78,7 +78,7 @@ mod test_emptiness {
 
     use crate::buchi;
 
-    use crate::expression::LTLExpression;
+    use crate::ltl::expression::LTLExpression;
 
     #[test]
     fn it_should_found_non_empty() {

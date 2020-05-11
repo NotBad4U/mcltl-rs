@@ -4,7 +4,7 @@ pub mod parser;
 #[cfg(test)]
 mod test_parser {
     use super::*;
-    use crate::expression::LTLExpression;
+    use crate::ltl::expression::LTLExpression;
 
     #[test]
     fn it_should_parse_ltl_binary_expression() {

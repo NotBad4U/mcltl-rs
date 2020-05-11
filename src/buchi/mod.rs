@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use crate::{
-    automata::{Node, INIT_NODE_ID},
-    expression::LTLExpression,
+    ltl::automata::{Node, INIT_NODE_ID},
+    ltl::expression::LTLExpression,
 };
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
@@ -382,8 +382,8 @@ pub fn product_automata(program: Buchi, property: Buchi) -> Buchi {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::automata::create_graph;
-    use crate::expression::rewrite;
+    use crate::ltl::automata::create_graph;
+    use crate::ltl::expression::rewrite;
     use crate::gbuchi;
 
     #[test]

@@ -2,7 +2,7 @@ use std::collections::HashSet as Set;
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::expression::LTLExpression;
+use super::expression::LTLExpression;
 
 pub const INIT_NODE_ID: &str = "INIT";
 

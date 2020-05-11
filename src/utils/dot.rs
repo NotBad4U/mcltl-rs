@@ -1,4 +1,4 @@
-use crate::{buchi::Buchi, expression::LTLExpression};
+use crate::{buchi::Buchi, ltl::expression::LTLExpression};
 use dot;
 use std::io::{Result as IOResult};
 
