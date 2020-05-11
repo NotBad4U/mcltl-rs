@@ -4,11 +4,6 @@ use crate::expression::LTLExpression;
 use crate::parser::lexer::{Span, Token, Token::*};
 
 #[derive(Debug)]
-pub struct Input {
-    pub stmts: Vec<LTLExpressionSpan>,
-}
-
-#[derive(Debug)]
 pub struct LTLExpressionSpan {
     pub span: Span,
     pub expr: LTLExpression,
@@ -24,40 +19,48 @@ parser! {
         }
     }
 
-    ltl: LTLExpressionSpan {
-        Not ltl[e] => LTLExpressionSpan {
-            span: span!(),
-            expr: LTLExpression::Not(Box::new(e.expr)),
-        },
-        G LParen ltl[e] RParen => LTLExpressionSpan {
+    expr: LTLExpressionSpan {
+        binexpr[b] => b,
+        atom[a] => a,
+        G expr[e] => LTLExpressionSpan {
             span: span!(),
             expr: LTLExpression::G(Box::new(e.expr)),
         },
-        F LParen ltl[e] RParen => LTLExpressionSpan {
+        F expr[e] => LTLExpressionSpan {
             span: span!(),
             expr: LTLExpression::F(Box::new(e.expr)),
         },
-        LParen ltl[e1] U ltl[e2] RParen => LTLExpressionSpan {
+        Not expr[e] => LTLExpressionSpan {
+            span: span!(),
+            expr: LTLExpression::Not(Box::new(e.expr)),
+        },
+        LParen expr[e] RParen => LTLExpressionSpan {
+            span: span!(),
+            expr: e.expr,
+        },
+    }
+
+    binexpr: LTLExpressionSpan{
+        atom[e1] U expr[e2] => LTLExpressionSpan {
             span: span!(),
             expr: LTLExpression::U(Box::new(e1.expr), Box::new(e2.expr)),
-        }, 
-        LParen ltl[e1] R ltl[e2] RParen => LTLExpressionSpan {
+        },
+        atom[e1] R expr[e2] => LTLExpressionSpan {
             span: span!(),
             expr: LTLExpression::R(Box::new(e1.expr), Box::new(e2.expr)),
         },
-        LParen ltl[e1] V ltl[e2] RParen => LTLExpressionSpan {
+        atom[e1] V expr[e2] => LTLExpressionSpan {
             span: span!(),
             expr: LTLExpression::V(Box::new(e1.expr), Box::new(e2.expr)),
         },
-        LParen ltl[e1] Or ltl[e2] RParen => LTLExpressionSpan {
+        atom[e1] Or expr[e2] => LTLExpressionSpan {
             span: span!(),
             expr: LTLExpression::Or(Box::new(e1.expr), Box::new(e2.expr)),
         },
-        LParen ltl[e1] And ltl[e2] RParen => LTLExpressionSpan {
+        atom[e1] And expr[e2] => LTLExpressionSpan {
             span: span!(),
             expr: LTLExpression::And(Box::new(e1.expr), Box::new(e2.expr)),
         },
-        atom[a] => a,
     }
 
     atom: LTLExpressionSpan {
