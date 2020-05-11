@@ -1,12 +1,13 @@
 use crate::{buchi::Buchi, expression::LTLExpression};
 use dot;
-use std::io::{Result as IOResult, Write};
+use std::io::{Result as IOResult};
 
 type Node = String;
 type Edge<'a> = (String, LTLExpression, String);
 
-pub fn render_to<W: Write>(buchi: Buchi, output: &mut W) -> IOResult<()> {
-    dot::render(&buchi, output)
+pub fn render_to(buchi: Buchi, file_name: &str) -> IOResult<()> {
+    let mut f = std::fs::File::create(file_name).unwrap();
+    dot::render(&buchi, &mut f)
 }
 
 impl<'a> dot::Labeller<'a, Node, Edge<'a>> for Buchi {
