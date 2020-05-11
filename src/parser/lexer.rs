@@ -35,7 +35,7 @@ lexer! {
     r#"F"# => Token::F,
     r#"U"# => Token::U,
     r#"V"# => Token::V,
-    r#"R"# => Token::V,
+    r#"R"# => Token::R,
 
     r#"[a-z_][a-z0-9_]*"# => Token::Ident(text.to_owned()),
 
