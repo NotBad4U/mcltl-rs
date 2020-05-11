@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[macro_export]
 macro_rules! buchi{
     (
@@ -63,5 +65,42 @@ macro_rules! gbuchi{
         $($(__graph.accepting_states.push($accepting_states.clone());)*)*
 
         __graph
+    }};
+}
+
+#[macro_export]
+macro_rules! kripke{
+    (
+        $(
+            $world:ident = [$( $prop:expr),*]
+        )*
+        ===
+        $(
+            $src:ident R $dst:ident
+        )*
+        ===
+        init = [$( $init:ident ),*]
+    ) => {{
+        let mut __kripke = KripkeStructure::new(vec![]);
+
+        $(
+            let mut $world = World {
+                id: stringify!($world).into(),
+                assignement: std::collections::HashMap::new(),
+            };
+            $(
+                $world.assignement.insert($prop.0.into(), $prop.1);
+            )*
+
+            __kripke.add_world($world.clone());
+        )*
+
+        $(
+            __kripke.add_relation($src.clone(), $dst.clone());
+        )*
+
+        __kripke.inits = vec![$($init.id.clone(),)*];
+
+        __kripke
     }};
 }
