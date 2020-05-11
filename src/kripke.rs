@@ -58,14 +58,14 @@ impl KripkeStructure {
 
     /// Computing an NBA AM from a Kripke Structure M
     ///
-    /// Kripke structure: M = <hS, S0, R, L, APi>
-    /// into NBA: Am = <Q, Σ, δ, I, Fi>
+    /// Kripke structure: `M = <hS, S0, R, L, APi>`
+    /// into NBA: `Am = <Q, Σ, δ, I, Fi>`
     ///
-    /// Sates: Q := S U { init }
-    /// Alphabets: Σ := 2^AP
-    /// Initial State I := { init }
-    /// Accepting States: F := Q = S U { init }
-    /// Transitions:
+    /// * Sates: Q := S U { init }
+    /// * Alphabets: Σ := 2^AP
+    /// * Initial State I := { init }
+    /// * Accepting States: F := Q = S U { init }
+    /// * Transitions:
     /// δ : q →a q' iff (q, q) ∈ R and L(q') = a
     /// init ->a q iff q ∈ S0 and L(q) = a
     ///
@@ -217,7 +217,7 @@ pub enum Token {
     Init,
 }
 
-pub struct KripkeLexer<'a> {
+struct KripkeLexer<'a> {
     original: &'a str,
     remaining: &'a str,
 }

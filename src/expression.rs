@@ -10,6 +10,7 @@ pub enum LTLExpressionError {
     InvalidOperation,
 }
 
+/// The inductive set of LTL formulas over AP
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum LTLExpression {
     True,
@@ -44,11 +45,13 @@ impl fmt::Display for LTLExpression {
 }
 
 impl LTLExpression {
+    /// Simplify this LTL formula by rewritting G, F, V subformula with the operators U and R
     pub fn rewrite(&mut self) {
         *self = rewrite(self.clone())
     }
 }
 
+/// Simplify an LTL formula by rewritting G, F, V subformula with the operators U and R
 pub fn rewrite(ltle: LTLExpression) -> LTLExpression {
     match ltle {
         LTLExpression::True => LTLExpression::True,

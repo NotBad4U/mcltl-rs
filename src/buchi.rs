@@ -241,12 +241,12 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> GeneralBuchi {
 
 /// Multiple sets of states in acceptance condition can be translated into one set of states
 /// by an automata construction, which is known as "counting construction".
-/// Let's say A = (Q, Σ, ∆, q0, {F1,...,Fn}) is a GBA, where F1,...,Fn are sets of accepting states
-/// then the equivalent Büchi automaton is A' = (Q', Σ, ∆',q'0,F'), where
-/// Q' = Q × {1,...,n}
-/// q'0 = ( q0,1 )
-/// ∆' = { ( (q,i), a, (q',j) ) | (q,a,q') ∈ ∆ and if q ∈ Fi then j=((i+1) mod n) else j=i }
-/// F'=F1× {1}
+/// Let's say `A = (Q, Σ, ∆, q0, {F1,...,Fn})` is a GBA, where `F1,...,Fn` are sets of accepting states
+/// then the equivalent Büchi automaton is `A' = (Q', Σ, ∆',q'0,F')`, where
+/// * `Q' = Q × {1,...,n}`
+/// * `q'0 = ( q0,1 )`
+/// * `∆' = { ( (q,i), a, (q',j) ) | (q,a,q') ∈ ∆ and if q ∈ Fi then j=((i+1) mod n) else j=i }`
+/// * `F'=F1× {1}`
 pub fn ba_from_gba(general_buchi: GeneralBuchi) -> Buchi {
     let mut ba = Buchi::new();
 
@@ -302,17 +302,17 @@ pub fn ba_from_gba(general_buchi: GeneralBuchi) -> Buchi {
 }
 
 /// Product of the program and the property
-/// Let A1 = (S1 ,Σ1 , ∆1 ,I1 ,F1)
-/// and  A2 = (S2 ,Σ2 , ∆2 ,I2 ,F2 ) be two automata.
+/// Let `A1 = (S1 ,Σ1 , ∆1 ,I1 ,F1)`
+/// and  `A2 = (S2 ,Σ2 , ∆2 ,I2 ,F2 )` be two automata.
 ///
-/// We define A1 × A2 , as the quituple:
-/// (S,Σ,∆,I,F) := (S1 × S2, Σ1 × Σ2, ∆1 × ∆2, I1 × I2, F1 × F2),
+/// We define `A1 × A2` , as the quituple:
+/// `(S,Σ,∆,I,F) := (S1 × S2, Σ1 × Σ2, ∆1 × ∆2, I1 × I2, F1 × F2)`,
 ///
-/// where where ∆ is a function from S × Σ to P(S1) × P(S2) ⊆ P(S),
+/// where where ∆ is a function from `S × Σ` to `P(S1) × P(S2) ⊆ P(S)`,
 ///
-/// given by ∆((q1, q2), a, (q1', q2')) ∈ ∆
-/// iff (q1, a, q1') ∈ ∆1
-/// and (q2, a, q2') ∈ ∆2
+/// given by `∆((q1, q2), a, (q1', q2')) ∈ ∆`
+/// iff `(q1, a, q1') ∈ ∆1`
+/// and `(q2, a, q2') ∈ ∆2`
 pub fn product_automata(program: Buchi, property: Buchi) -> Buchi {
     let mut product_buchi = Buchi::new();
 
