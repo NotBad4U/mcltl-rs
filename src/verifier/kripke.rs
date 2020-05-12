@@ -1,16 +1,15 @@
 use std::collections::HashMap as Map;
+use std::convert::TryFrom;
 
-use crate::ltl::automata::INIT_NODE_ID;
 use crate::buchi::{Buchi, BuchiNode};
+use crate::ltl::automata::INIT_NODE_ID;
 use crate::ltl::expression::LTLExpression;
 use plex::{lexer, parser};
-
-type Literal = String;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct World {
     pub id: String,
-    pub assignement: Map<Literal, bool>,
+    pub assignement: Map<String, bool>,
 }
 
 impl World {
@@ -37,6 +36,99 @@ pub struct KripkeStructure {
     pub relations: Vec<(World, World)>,
 }
 
+impl TryFrom<String> for KripkeStructure {
+    type Error = &'static str;
+
+    fn try_from(program: String) -> Result<Self, Self::Error> {
+        let lexer = KripkeLexer::new(program.as_str());
+        let parse_result = parser::parse(lexer);
+
+        match parse_result {
+            Ok(exprs) =>  {
+                match KripkeStructure::from_exprs(exprs) {
+                    Ok(k) => Ok(k),
+                    Err(_) => Err("can't parse kripke structure"), //FIXME: should use the error return by parser
+                }
+               
+            },
+            Err(e) => {
+                Err(e.1)
+            }
+        }
+    }
+}
+
+/// Computing an NBA AM from a Kripke Structure M
+///
+/// Kripke structure: `M = <hS, S0, R, L, APi>`
+/// into NBA: `Am = <Q, Σ, δ, I, Fi>`
+///
+/// * Sates: Q := S U { init }
+/// * Alphabets: Σ := 2^AP
+/// * Initial State I := { init }
+/// * Accepting States: F := Q = S U { init }
+/// * Transitions:
+/// δ : q →a q' iff (q, q) ∈ R and L(q') = a
+/// init ->a q iff q ∈ S0 and L(q) = a
+///
+impl Into<Buchi> for KripkeStructure {
+    fn into(self) -> Buchi {
+        let mut buchi = Buchi::new();
+
+        for (src, dst) in self.relations.iter() {
+            if let Some(node) = buchi.get_node_mut(src.id.as_str()) {
+                let mut target = BuchiNode::new(dst.id.clone());
+                target.labels = dst.assignement.iter().map(|(k, v)| {
+                    if *v {
+                        LTLExpression::Literal(k.into())
+                    } else {
+                        LTLExpression::Not(Box::new(LTLExpression::Literal(k.into())))
+                    }
+                }).collect();
+
+                node.adj.push(target);
+            } else {
+                let mut node = BuchiNode::new(src.id.clone());
+                let mut target =  BuchiNode::new(dst.id.clone());
+                target.labels = dst.assignement.iter().map(|(k, v)| {
+                    if *v {
+                        LTLExpression::Literal(k.into())
+                    } else {
+                        LTLExpression::Not(Box::new(LTLExpression::Literal(k.into())))
+                    }
+                }).collect();
+
+                node.adj.push(target);
+                buchi.adj_list.push(node.clone());
+                buchi.accepting_states.push(node);
+            }
+        }
+
+        let mut init = BuchiNode::new(INIT_NODE_ID.into());
+
+        //TODO: Improve this by changing the data structure.
+        for i in self.inits {
+            let world = self.worlds.iter().find(|w| w.id == i).unwrap();
+            let mut target_node = BuchiNode::new(world.id.clone());
+            target_node.labels = world.assignement.iter().map(|(k, v)| {
+                if *v {
+                    LTLExpression::Literal(k.into())
+                } else {
+                    LTLExpression::Not(Box::new(LTLExpression::Literal(k.into())))
+                }
+            }).collect();
+            init.adj.push(target_node);
+        }
+
+        buchi.init_states.push(init.clone());
+        buchi.adj_list.push(init.clone());
+        buchi.accepting_states.push(init.clone());
+
+
+        buchi
+    }
+}
+
 impl KripkeStructure {
     pub fn new(inits: Vec<String>) -> Self {
         Self {
@@ -54,90 +146,6 @@ impl KripkeStructure {
     /// Add a new relation
     pub fn add_relation(&mut self, w1: World, w2: World) {
         self.relations.push((w1, w2));
-    }
-
-    /// Computing an NBA AM from a Kripke Structure M
-    ///
-    /// Kripke structure: `M = <hS, S0, R, L, APi>`
-    /// into NBA: `Am = <Q, Σ, δ, I, Fi>`
-    ///
-    /// * Sates: Q := S U { init }
-    /// * Alphabets: Σ := 2^AP
-    /// * Initial State I := { init }
-    /// * Accepting States: F := Q = S U { init }
-    /// * Transitions:
-    /// δ : q →a q' iff (q, q) ∈ R and L(q') = a
-    /// init ->a q iff q ∈ S0 and L(q) = a
-    ///
-    pub fn into_buchi(&self) -> Buchi {
-        let mut id_cnt = 1; // we reserve 0 for the initial node.
-        let mut buchi = Buchi::new();
-
-        let mut buchi_nodes_adj: Map<String, BuchiNode> = Map::new();
-
-        // build the transitions
-        for (w1, w2) in self.relations.iter() {
-            let bn_w1 = buchi_nodes_adj.get(&w1.id).map(|b| b.clone());
-            let bn_w2 = buchi_nodes_adj.get(&w2.id).map(|b| b.clone());
-
-            match (bn_w1, bn_w2) {
-                (Some(bn_w1), Some(mut bn_w2)) => {
-                    bn_w2.labels.append(&mut w1.assignement_into_ltle());
-
-                    if let Some(bn1) = buchi_nodes_adj.get_mut(&bn_w1.id) {
-                        (*bn1).adj.push(bn_w2);
-                    }
-                }
-                (Some(bn_w1), None) => {
-                    let mut bn_w2 = BuchiNode::new(format!("n{}", id_cnt));
-                    id_cnt = id_cnt + 1;
-
-                    bn_w2.labels.append(&mut w1.assignement_into_ltle());
-
-                    buchi_nodes_adj.insert(bn_w2.id.clone(), bn_w2.clone());
-                    if let Some(bn1) = buchi_nodes_adj.get_mut(&bn_w1.id) {
-                        (*bn1).adj.push(bn_w2);
-                    }
-                }
-                (None, Some(mut bn_w2)) => {
-                    let mut bn_w1 = BuchiNode::new(format!("n{}", id_cnt));
-                    id_cnt = id_cnt + 1;
-
-                    bn_w2.labels.append(&mut w1.assignement_into_ltle());
-
-                    bn_w1.adj.push(bn_w2.clone());
-                    buchi_nodes_adj.insert(bn_w1.id.clone(), bn_w1);
-                }
-                (None, None) => {
-                    let mut bn_w1 = BuchiNode::new(format!("n{}", id_cnt));
-                    id_cnt = id_cnt + 1;
-                    let mut bn_w2 = BuchiNode::new(format!("n{}", id_cnt));
-                    id_cnt = id_cnt + 1;
-
-                    bn_w2.labels.append(&mut w1.assignement_into_ltle());
-
-                    bn_w1.adj.push(bn_w2.clone());
-                    buchi_nodes_adj.insert(bn_w1.id.clone(), bn_w1);
-                    buchi_nodes_adj.insert(bn_w2.id.clone(), bn_w2);
-                }
-            }
-        }
-
-        // build the Initial state and his transitions
-        let mut init_node = BuchiNode::new(INIT_NODE_ID.to_string());
-
-        for id in self.inits.iter() {
-            if let Some(node) = buchi_nodes_adj.get(id) {
-                init_node.adj.push(node.clone());
-            }
-        }
-        buchi_nodes_adj.insert(INIT_NODE_ID.into(), init_node.clone());
-
-        buchi.accepting_states = buchi_nodes_adj.iter().map(|(_, v)| v.clone()).collect();
-        buchi.adj_list = buchi_nodes_adj.into_iter().map(|(_, v)| v).collect();
-        buchi.init_states = vec![init_node];
-
-        buchi
     }
 
     fn from_exprs(exprs: Vec<Expr>) -> Result<Self, String> {
@@ -299,8 +307,8 @@ pub enum Expr {
 }
 
 mod parser {
-    use super::*;
     use super::Token::*;
+    use super::*;
     use std::iter::FromIterator;
 
     parser! {
@@ -376,47 +384,63 @@ mod test_kripke {
     fn it_should_compute_nba_from_kripke_struct() {
         let kripke = crate::kripke! {
             n1 = [ ("p", true), ("q", true) ]
-            n2 = [ ("p", true), ("q", false) ]
-            n3 = [ ("p", false), ("q", true) ]
+            n2 = [ ("p", true) ]
+            n3 = [ ("q", true) ]
             ===
             n1 R n2
-            n3 R n1
             n2 R n1
             n2 R n3
+            n3 R n1
             ===
             init = [n1, n2]
         };
 
-        let buchi = kripke.into_buchi();
+        let buchi: Buchi = kripke.into();
 
-        //FIXME: make the asserts more strong
-        assert_eq!(4, buchi.adj_list.len());
-        assert_eq!(1, buchi.init_states.len());
+        /*let buchi_expected = crate::buchi!{
+
+            n1
+                [LTLExpression::Literal("p".into())] => n2
+            n2
+                [LTLExpression::Literal("p".into()), LTLExpression::Literal("q".into())] => n1
+                [LTLExpression::Literal("q".into())] => n3
+            n3
+                [LTLExpression::Literal("p".into()), LTLExpression::Literal("q".into())] => n1
+            INIT
+                [LTLExpression::Literal("p".into()), LTLExpression::Literal("q".into())] => n1
+                [LTLExpression::Literal("p".into())] => n2
+            ===
+            init = [INIT]
+            accepting = [n1, n2, n3, INIT]
+        };*/
+
         assert_eq!(4, buchi.accepting_states.len());
+        assert_eq!(1, buchi.init_states.len());
+        assert_eq!(4, buchi.adj_list.len());
+        crate::utils::dot::render_to(buchi, "test.dot");
     }
 
     #[test]
     fn it_should_compute_nba_from_kripke_struct2() {
         let kripke = crate::kripke! {
-            n0 = [ ("p", true), ("q", false), ("r", false) ]
-            n1 = [ ("p", true), ("q", true), ("r", false) ]
-            n2 = [ ("p", false), ("q", true), ("r", true) ]
+            n1 = [ ("a", true) ]
+            n2 = [ ("b", true) ]
+            n3 = [ ("c", true) ]
             ===
-            n0 R n1
-            n0 R n2
-
-            n1 R n1
             n1 R n2
-
-            n2 R n0
+            n2 R n3
+            n3 R n1
             ===
-            init = [n0]
+            init = [n1]
         };
 
-        let buchi = kripke.into_buchi();
-        assert_eq!(5, buchi.adj_list.len());
+        let buchi: Buchi = kripke.into();
+
+        assert_eq!(4, buchi.accepting_states.len());
         assert_eq!(1, buchi.init_states.len());
+        assert_eq!(4, buchi.adj_list.len());
     }
+
 
     #[test]
     fn it_should_parse_kripke_structure() {
