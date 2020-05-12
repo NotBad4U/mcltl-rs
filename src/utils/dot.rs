@@ -3,7 +3,7 @@ use dot;
 use std::io::{Result as IOResult};
 
 type Node = String;
-type Edge<'a> = (String, LTLExpression, String);
+type Edge<'a> = (String, Vec<LTLExpression>, String);
 
 pub fn render_to(buchi: Buchi, file_name: &str) -> IOResult<()> {
     let mut f = std::fs::File::create(file_name).unwrap();
@@ -23,7 +23,14 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for Buchi {
         dot::LabelText::LabelStr(format!("{}", n).into())
     }
     fn edge_label<'b>(&'b self, e: &Edge) -> dot::LabelText<'b> {
-        dot::LabelText::LabelStr(format!("{}", e.1).into())
+        let mut tmp =
+            e.1.iter().fold(String::new(), |acc, lit| acc + &lit.to_string() + ", ");
+        tmp.pop();
+        tmp.pop(); //FIXME: understand why we have an empty last char...
+        let mut tmp2 = tmp.replace("¬", "~");
+        let comma_separated = tmp2.replace("⊥", "F");
+
+        dot::LabelText::LabelStr(format!("{}", comma_separated).into())
     }
 
     fn node_color<'b>(&'b self, n: &Node) -> Option<dot::LabelText<'b>> {
@@ -63,8 +70,7 @@ impl<'a> dot::GraphWalk<'a, Node, Edge<'a>> for Buchi {
         let mut edges = vec![];
         for source in self.adj_list.iter() {
             for target in source.adj.iter() {
-                let label = target.labels.get(0).unwrap_or(&LTLExpression::True).clone();
-                edges.push((source.id.clone(), label, target.id.clone()));
+                edges.push((source.id.clone(), target.labels.clone(), target.id.clone()));
             }
         }
 

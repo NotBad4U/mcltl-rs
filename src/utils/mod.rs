@@ -1,3 +1,5 @@
+pub mod dot;
+
 #[macro_export]
 macro_rules! buchi{
     (
