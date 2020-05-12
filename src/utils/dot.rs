@@ -27,19 +27,10 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for Buchi {
             e.1.iter().fold(String::new(), |acc, lit| acc + &lit.to_string() + ", ");
         tmp.pop();
         tmp.pop(); //FIXME: understand why we have an empty last char...
-        let mut tmp2 = tmp.replace("¬", "~");
+        let tmp2 = tmp.replace("¬", "~");
         let comma_separated = tmp2.replace("⊥", "F");
 
         dot::LabelText::LabelStr(format!("{}", comma_separated).into())
-    }
-
-    fn node_color<'b>(&'b self, n: &Node) -> Option<dot::LabelText<'b>> {
-        if self.init_states.iter().any(|bn| bn.id == *n) {
-            Some(dot::LabelText::LabelStr("yellow".into()))
-
-        } else {
-            Some(dot::LabelText::LabelStr("black".into()))
-        }
     }
 
     fn node_shape<'b>(&'b self, n: &Node) -> Option<dot::LabelText<'b>> {
@@ -51,10 +42,9 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for Buchi {
 
         if is_an_accepting_state {
             Some(dot::LabelText::LabelStr("doublecircle".into()))
+        } else if n.starts_with("qi") {
+            Some(dot::LabelText::LabelStr("point".into()))
         }
-        //} else if is_an_init_state {
-        //    Some(dot::LabelText::LabelStr("point".into()))
-        //}
         else {
             None
         }
@@ -63,14 +53,22 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for Buchi {
 
 impl<'a> dot::GraphWalk<'a, Node, Edge<'a>> for Buchi {
     fn nodes(&self) -> dot::Nodes<'a, Node> {
-        self.adj_list.iter().map(|adj| adj.id.clone()).collect()
+        let mut adjs : Vec<Node> = self.adj_list.iter().map(|adj| adj.id.clone()).collect();
+        adjs.push("qi".into());
+        adjs.into()
     }
 
     fn edges(&'a self) -> dot::Edges<'a, Edge<'a>> {
+        let mut qi = false;
         let mut edges = vec![];
         for source in self.adj_list.iter() {
             for target in source.adj.iter() {
                 edges.push((source.id.clone(), target.labels.clone(), target.id.clone()));
+
+                if !qi && self.init_states.iter().any(|n| n.id == source.id) {
+                    edges.push(("qi".into(), vec![], source.id.clone()));
+                    qi = true;
+                }
             }
         }
 
