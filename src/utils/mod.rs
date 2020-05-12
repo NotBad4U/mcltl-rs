@@ -5,7 +5,7 @@ macro_rules! buchi{
     (
         $(
             $src: ident
-                $([$ltl:expr] => $dest: ident)*
+                $([$( $ltl:expr ),*] => $dest: ident)*
         )*
         ===
         init = [$( $init:ident ),*]
@@ -18,7 +18,7 @@ macro_rules! buchi{
                 $src.adj.push(
                     BuchiNode {
                         id: stringify!($dest).into(),
-                        labels: vec![$ltl],
+                        labels: vec![$($ltl),*],
                         adj: vec![],
                     }
                 );
