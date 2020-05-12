@@ -1,4 +1,7 @@
+use std::convert::TryFrom;
 use std::fmt;
+
+use super::parser::{lexer::Lexer, parser};
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum LTLExpressionError {
@@ -24,6 +27,15 @@ pub enum LTLExpression {
     U(Box<LTLExpression>, Box<LTLExpression>),
     R(Box<LTLExpression>, Box<LTLExpression>),
     V(Box<LTLExpression>, Box<LTLExpression>),
+}
+
+impl TryFrom<&str> for LTLExpression {
+    type Error = &'static str;
+
+    fn try_from(formula: &str) -> Result<Self, Self::Error> {
+        let lexer = Lexer::new(formula);
+        parser::parse(lexer).map(|span| span.expr).map_err(|e| e.1)
+    }
 }
 
 impl fmt::Display for LTLExpression {
