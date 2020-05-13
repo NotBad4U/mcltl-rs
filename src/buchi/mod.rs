@@ -374,7 +374,13 @@ pub fn product_automata(program: Buchi, property: Buchi) -> Buchi {
     }
 
     // I := I1 x I2
-    product_buchi.init_states = vec![product_buchi.get_node("INIT_INIT").unwrap()];
+    if let Some(node) = product_buchi.get_node("INIT_INIT0") {
+        product_buchi.init_states = vec![node];
+    } else if let Some(node) = product_buchi.get_node("INIT_INIT") {
+        product_buchi.init_states = vec![node];
+    } else {
+        panic!("cannot find the INIT product state, this should not happend");
+    }
 
     product_buchi
 }
