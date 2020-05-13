@@ -417,7 +417,6 @@ mod test_kripke {
         assert_eq!(4, buchi.accepting_states.len());
         assert_eq!(1, buchi.init_states.len());
         assert_eq!(4, buchi.adj_list.len());
-        crate::utils::dot::render_to(buchi, "test.dot");
     }
 
     #[test]
