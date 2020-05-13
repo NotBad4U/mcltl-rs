@@ -282,11 +282,14 @@ pub fn ba_from_gba(general_buchi: GeneralBuchi) -> Buchi {
         }
     }
 
-    // q'0 = ( q0,1 )
-    for init in general_buchi.init_states.iter() {
-        let node = ba.get_node(format!("{}0", init.id).as_str()).unwrap();
-        ba.init_states.push(node.clone());
-    }
+    // q'0 = ( q0,1 ), here we start to count at 0
+    let init_node = ba
+        .get_node(format!("{}0", INIT_NODE_ID).as_str())
+        .expect(&format!(
+            "cannot find the init node {}0 but it should exist",
+            INIT_NODE_ID
+        ));
+    ba.init_states.push(init_node.clone());
 
     // F'=F1 × {1}
     let f_1 = general_buchi.accepting_states.first().unwrap();
@@ -324,26 +327,35 @@ pub fn product_automata(program: Buchi, property: Buchi) -> Buchi {
             let product_id = format!("{}_{}", n1.id, n2.id);
             let product_node = BuchiNode::new(product_id);
 
-            // F := { F1 x Q2, Q1 x F2 }
-            if property
-                .accepting_states
-                .iter()
-                .any(|b| b.id == product_node.id)
-            {
+            product_adjs.insert((n1.clone(), n2.clone()), product_node);
+        }
+    }
+
+    // F := { F1 x Q2, Q1 x F2 }
+    for a in program.accepting_states.iter() {
+        for ((f, _), product_node) in product_adjs.iter() {
+            if a.id == f.id {
                 product_buchi.accepting_states.push(product_node.clone());
             }
+        }
+    }
 
-            product_adjs.insert((n1.clone(), n2.clone()), product_node);
+    for a in property.accepting_states.iter() {
+        for ((f, _), product_node) in product_adjs.iter() {
+            if a.id == f.id {
+                product_buchi.accepting_states.push(product_node.clone());
+            }
         }
     }
 
     // transition function ∆
     for ((q1, q1_prime), _) in product_adjs.clone().iter() {
         for ((q2, q2_prime), curr_node) in product_adjs.clone().iter() {
+
             // collect all labels
             let mut labels = HashSet::new();
-            labels.extend(q1.labels.iter());
-            labels.extend(q2.labels.iter());
+            labels.extend(q1_prime.labels.iter());
+            labels.extend(q2_prime.labels.iter());
 
             for label in labels {
                 // check if (q1, a, q1') ∈ ∆1
@@ -388,9 +400,9 @@ pub fn product_automata(program: Buchi, property: Buchi) -> Buchi {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gbuchi;
     use crate::ltl::automata::create_graph;
     use crate::ltl::expression::rewrite;
-    use crate::gbuchi;
 
     #[test]
     fn it_should_extract_buchi_from_nodeset() {
@@ -428,15 +440,15 @@ mod tests {
     #[test]
     fn it_should_convert_gba_into_ba() {
         let gbuchi = gbuchi! {
-            s0
-                [LTLExpression::Literal("a".into())] => s0
+            INIT
+                [LTLExpression::Literal("a".into())] => INIT
                 [LTLExpression::Literal("b".into())] => s1
             s1
-                [LTLExpression::Literal("a".into())] => s0
+                [LTLExpression::Literal("a".into())] => INIT
                 [LTLExpression::Literal("b".into())] => s1
             ===
-            init = [s0]
-            accepting = [vec![s0.clone()]]
+            init = [INIT]
+            accepting = [vec![INIT.clone()]]
             accepting = [vec![s1.clone()]]
         };
 
@@ -449,7 +461,7 @@ mod tests {
     #[test]
     fn it_should_convert_gba_into_ba2() {
         let gbuchi = gbuchi! {
-            q1
+            INIT
                [LTLExpression::Literal("a".into())] => q3
                [LTLExpression::Literal("b".into())] => q2
             q2
@@ -462,9 +474,9 @@ mod tests {
                 [LTLExpression::Literal("a".into())] => q3
                 [LTLExpression::Literal("b".into())] => q2
             ===
-            init = [q1]
-            accepting = [vec![q1.clone(), q3]]
-            accepting = [vec![q1, q2]]
+            init = [INIT]
+            accepting = [vec![INIT.clone(), q3]]
+            accepting = [vec![INIT, q2]]
         };
 
         let buchi = ba_from_gba(gbuchi);
