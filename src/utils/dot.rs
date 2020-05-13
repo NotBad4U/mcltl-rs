@@ -97,7 +97,7 @@ impl<'a> dot::GraphWalk<'a, Node, Edge<'a>> for Buchi {
 
 impl<'a> dot::Labeller<'a, Node, Edge<'a>> for GeneralBuchi {
     fn graph_id(&'a self) -> dot::Id<'a> {
-        dot::Id::new("buchi").unwrap()
+        dot::Id::new("gbuchi").unwrap()
     }
 
     fn node_id(&'a self, n: &Node) -> dot::Id<'a> {
