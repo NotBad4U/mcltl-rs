@@ -61,7 +61,6 @@ mod test_parser {
             LTLExpression::Literal("p".into()),
         ))));
 
-        println!("{:?}", parse_result);
         //assert!(parse_result.is_ok());
         //assert_eq!(expected, parse_result.unwrap().expr);
     }
