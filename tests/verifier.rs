@@ -1,4 +1,4 @@
-use ltl::verifier;
+use mcltl_lib::verifier;
 
 #[test]
 fn it_should_not_hold_simple_until() {

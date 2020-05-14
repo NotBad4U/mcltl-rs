@@ -3,6 +3,10 @@
 A model checker for LTL written in Rust
 
 
+:warning::warning:  You must replace meowmeowmeow with your personal API key. :warning::warning:
+
+
+
 ## Inspirations
 
 * Vardi, Moshe. (1996). An Automata-Theoretic Approach to Linear Temporal Logic. 10.1007/3-540-60915-6_6.

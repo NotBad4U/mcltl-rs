@@ -7,6 +7,7 @@ use std::fs;
 pub mod kripke;
 pub mod model_checker;
 
+//WARN: use only integration tests for now until the API is stable
 pub fn verify<'a>(program_path: &'a str, property: &'a str) -> Result<(), (Vec<buchi::BuchiNode>, Vec<buchi::BuchiNode>)> {
     let contents = fs::read_to_string(program_path).expect("cannot read program file");
 
