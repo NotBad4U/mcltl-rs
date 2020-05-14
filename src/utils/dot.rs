@@ -1,4 +1,7 @@
-use crate::{buchi::{Buchi, GeneralBuchi}, ltl::expression::LTLExpression};
+use crate::{
+    buchi::{Buchi, GeneralBuchi},
+    ltl::expression::LTLExpression,
+};
 use dot;
 use std::io::{Result as IOResult, Write};
 
@@ -37,7 +40,8 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for Buchi {
     }
     fn edge_label<'b>(&'b self, e: &Edge) -> dot::LabelText<'b> {
         let mut tmp =
-            e.1.iter().fold(String::new(), |acc, lit| acc + &lit.to_string() + ", ");
+            e.1.iter()
+                .fold(String::new(), |acc, lit| acc + &lit.to_string() + ", ");
         tmp.pop();
         tmp.pop(); //FIXME: understand why we have an empty last char...
         let tmp2 = tmp.replace("¬", "~");
@@ -47,18 +51,13 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for Buchi {
     }
 
     fn node_shape<'b>(&'b self, n: &Node) -> Option<dot::LabelText<'b>> {
-        let is_an_accepting_state = self
-            .accepting_states
-            .iter()
-            .any(|bns| bns.id == *n);
-
+        let is_an_accepting_state = self.accepting_states.iter().any(|bns| bns.id == *n);
 
         if is_an_accepting_state {
             Some(dot::LabelText::LabelStr("doublecircle".into()))
         } else if n.starts_with("qi") {
             Some(dot::LabelText::LabelStr("point".into()))
-        }
-        else {
+        } else {
             None
         }
     }
@@ -66,21 +65,23 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for Buchi {
 
 impl<'a> dot::GraphWalk<'a, Node, Edge<'a>> for Buchi {
     fn nodes(&self) -> dot::Nodes<'a, Node> {
-        let mut adjs : Vec<Node> = self.adj_list.iter().map(|adj| adj.id.clone()).collect();
-        adjs.push("qi".into());
+        let mut adjs: Vec<Node> = self.adj_list.iter().map(|adj| adj.id.clone()).collect();
+
+        self.init_states
+            .iter()
+            .for_each(|i| adjs.push(format!("qi_{}", i.id)));
+
         adjs.into()
     }
 
     fn edges(&'a self) -> dot::Edges<'a, Edge<'a>> {
-        let mut qi = false;
         let mut edges = vec![];
         for source in self.adj_list.iter() {
             for target in source.adj.iter() {
                 edges.push((source.id.clone(), target.labels.clone(), target.id.clone()));
 
-                if !qi && self.init_states.iter().any(|n| n.id == source.id) {
-                    edges.push(("qi".into(), vec![], source.id.clone()));
-                    qi = true;
+                if self.init_states.iter().any(|n| n.id == source.id) {
+                    edges.push((format!("qi_{}", source.id), vec![], source.id.clone()));
                 }
             }
         }
@@ -109,7 +110,8 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for GeneralBuchi {
     }
     fn edge_label<'b>(&'b self, e: &Edge) -> dot::LabelText<'b> {
         let mut tmp =
-            e.1.iter().fold(String::new(), |acc, lit| acc + &lit.to_string() + ", ");
+            e.1.iter()
+                .fold(String::new(), |acc, lit| acc + &lit.to_string() + ", ");
         tmp.pop();
         tmp.pop(); //FIXME: understand why we have an empty last char...
         let tmp2 = tmp.replace("¬", "~");
@@ -124,13 +126,11 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for GeneralBuchi {
             .iter()
             .any(|bns| bns.iter().any(|n| n.id == *n.id));
 
-
         if is_an_accepting_state {
             Some(dot::LabelText::LabelStr("doublecircle".into()))
-        } else if n.starts_with("qi") {
+        } else if n.starts_with("qi_") {
             Some(dot::LabelText::LabelStr("point".into()))
-        }
-        else {
+        } else {
             None
         }
     }
@@ -138,27 +138,30 @@ impl<'a> dot::Labeller<'a, Node, Edge<'a>> for GeneralBuchi {
 
 impl<'a> dot::GraphWalk<'a, Node, Edge<'a>> for GeneralBuchi {
     fn nodes(&self) -> dot::Nodes<'a, Node> {
-        let mut adjs : Vec<Node> = self.adj_list.iter().map(|adj| adj.id.clone()).collect();
-        adjs.push("qi".into());
+        let mut adjs: Vec<Node> = self.adj_list.iter().map(|adj| adj.id.clone()).collect();
+
+        self.init_states
+            .iter()
+            .for_each(|i| adjs.push(format!("qi_{}", i.id)));
+
         adjs.into()
     }
 
     fn edges(&'a self) -> dot::Edges<'a, Edge<'a>> {
-        let mut qi = false;
         let mut edges = vec![];
         for source in self.adj_list.iter() {
             for target in source.adj.iter() {
                 edges.push((source.id.clone(), target.labels.clone(), target.id.clone()));
 
-                if !qi && self.init_states.iter().any(|n| n.id == source.id) {
-                    edges.push(("qi".into(), vec![], source.id.clone()));
-                    qi = true;
+                if self.init_states.iter().any(|n| n.id == source.id) {
+                    edges.push((format!("qi_{}", source.id), vec![], source.id.clone()));
                 }
             }
         }
 
         edges.into()
     }
+
     fn source(&self, e: &Edge) -> Node {
         e.0.clone()
     }
