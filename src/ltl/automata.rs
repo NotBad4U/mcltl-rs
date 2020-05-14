@@ -91,6 +91,9 @@ macro_rules! set {
     };
 }
 
+/// Implementation of the method describe in the paper: Simple On-the-Fly Automatic Verification of Linear Temporal Logic.
+/// The graph constructed by the algorithm can be used to deﬁne an LGBA accepting the inﬁnite words satisfying the formula.
+/// The set of states Q will be the nodes returned by this algorithm.
 pub fn create_graph(f: LTLExpression) -> Vec<Node> {
     let new_begin = vec![f];
 
@@ -103,6 +106,7 @@ pub fn create_graph(f: LTLExpression) -> Vec<Node> {
     expand(n, nodeset)
 }
 
+/// Implementation of the method describe in the paper: Simple On-the-Fly Automatic Verification of Linear Temporal Logic.
 fn expand<'a>(mut node: Node, mut nodeset: Vec<Node>) -> Vec<Node> {
     if node.newf.is_empty() {
         for k in nodeset.iter_mut() {
@@ -139,7 +143,10 @@ fn expand<'a>(mut node: Node, mut nodeset: Vec<Node>) -> Vec<Node> {
                 node.newf.push(f2.as_ref().clone());
                 return expand(node, nodeset);
             }
-            LTLExpression::U(_, _) | LTLExpression::Or(_, _) | LTLExpression::V(_, _) | LTLExpression::R(_, _) => {
+            LTLExpression::U(_, _)
+            | LTLExpression::Or(_, _)
+            | LTLExpression::V(_, _)
+            | LTLExpression::R(_, _) => {
                 let incoming1 = node.incoming.clone();
                 let mut next1 = node.next.clone();
                 next1.push(f.clone());

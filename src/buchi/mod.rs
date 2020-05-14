@@ -44,6 +44,8 @@ impl fmt::Display for BuchiNode {
     }
 }
 
+///  generalized Büchi automaton (GBA) automaton.
+/// The difference with the Büchi automaton is its accepting condition, i.e., a set of sets of states.
 #[derive(Debug, Eq, PartialEq)]
 pub struct GeneralBuchi {
     pub states: Vec<String>,
@@ -109,6 +111,8 @@ impl GeneralBuchi {
     }
 }
 
+/// Büchi automaton is a type of ω-automaton, which extends
+/// a finite automaton to infinite inputs.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Buchi {
     pub states: Vec<String>,
@@ -172,7 +176,7 @@ fn extract_unitl_subf(
     }
 }
 
-// LGBA construction from create_graph
+/// LGBA construction from create_graph set Q result
 pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> GeneralBuchi {
     let mut buchi = GeneralBuchi::new();
 
@@ -255,69 +259,61 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> GeneralBuchi {
 /// * `q'0 = ( q0,1 )`
 /// * `∆' = { ( (q,i), a, (q',j) ) | (q,a,q') ∈ ∆ and if q ∈ Fi then j=((i+1) mod n) else j=i }`
 /// * `F'=F1× {1}`
-pub fn ba_from_gba(general_buchi: GeneralBuchi) -> Buchi {
-    let mut ba = Buchi::new();
+impl From<GeneralBuchi> for Buchi {
+    fn from(general_buchi: GeneralBuchi) -> Buchi {
+        let mut ba = Buchi::new();
 
-    if general_buchi.accepting_states.is_empty() {
-        ba.accepting_states = general_buchi.adj_list.clone();
-        ba.adj_list = general_buchi.adj_list.clone();
-        ba.init_states = general_buchi.init_states.clone();
-
-        return ba;
-    }
-
-    for (i, _) in general_buchi.accepting_states.iter().enumerate() {
-        for n in general_buchi.adj_list.iter() {
-            let mut buchi_node = BuchiNode::new(format!("{}{}", n.id, i));
-            buchi_node.labels = n.labels.clone();
-            ba.adj_list.push(buchi_node);
+        if general_buchi.accepting_states.is_empty() {
+            ba.accepting_states = general_buchi.adj_list.clone();
+            ba.adj_list = general_buchi.adj_list.clone();
+            ba.init_states = general_buchi.init_states.clone();
+            return ba;
         }
-    }
-
-    for (i, f) in general_buchi.accepting_states.iter().enumerate() {
-        for node in general_buchi.adj_list.iter() {
-            for adj in node.adj.iter() {
-                let j;
-
-                if f.iter().any(|n| n.id == node.id) {
-                    j = (i + 1) % general_buchi.accepting_states.len();
-                } else {
-                    j = i;
-                }
-
-                let ba_node = ba
-                    .get_node_mut(format!("{}{}", node.id, i).as_str())
-                    .unwrap();
-
-                ba_node.adj.push(BuchiNode {
-                    id: format!("{}{}", adj.id, j),
-                    labels: adj.labels.clone(),
-                    adj: vec![],
-                });
+        for (i, _) in general_buchi.accepting_states.iter().enumerate() {
+            for n in general_buchi.adj_list.iter() {
+                let mut buchi_node = BuchiNode::new(format!("{}{}", n.id, i));
+                buchi_node.labels = n.labels.clone();
+                ba.adj_list.push(buchi_node);
             }
         }
+        for (i, f) in general_buchi.accepting_states.iter().enumerate() {
+            for node in general_buchi.adj_list.iter() {
+                for adj in node.adj.iter() {
+                    let j;
+                    if f.iter().any(|n| n.id == node.id) {
+                        j = (i + 1) % general_buchi.accepting_states.len();
+                    } else {
+                        j = i;
+                    }
+                    let ba_node = ba
+                        .get_node_mut(format!("{}{}", node.id, i).as_str())
+                        .unwrap();
+                    ba_node.adj.push(BuchiNode {
+                        id: format!("{}{}", adj.id, j),
+                        labels: adj.labels.clone(),
+                        adj: vec![],
+                    });
+                }
+            }
+        }
+        // q'0 = ( q0,1 ), here we start to count at 0
+        let init_node = ba
+            .get_node(format!("{}0", INIT_NODE_ID).as_str())
+            .expect(&format!(
+                "cannot find the init node {}0 but it should exist",
+                INIT_NODE_ID
+            ));
+        ba.init_states.push(init_node.clone());
+        // F'=F1 × {1}
+        let f_1 = general_buchi.accepting_states.first().unwrap();
+        for accepting_state in f_1.iter() {
+            let node = ba
+                .get_node(format!("{}0", accepting_state.id).as_str())
+                .unwrap();
+            ba.accepting_states.push(node);
+        }
+        ba
     }
-
-    // q'0 = ( q0,1 ), here we start to count at 0
-    let init_node = ba
-        .get_node(format!("{}0", INIT_NODE_ID).as_str())
-        .expect(&format!(
-            "cannot find the init node {}0 but it should exist",
-            INIT_NODE_ID
-        ));
-    ba.init_states.push(init_node.clone());
-
-    // F'=F1 × {1}
-    let f_1 = general_buchi.accepting_states.first().unwrap();
-
-    for accepting_state in f_1.iter() {
-        let node = ba
-            .get_node(format!("{}0", accepting_state.id).as_str())
-            .unwrap();
-        ba.accepting_states.push(node);
-    }
-
-    ba
 }
 
 /// Product of the program and the property
@@ -447,7 +443,7 @@ mod tests {
         let nodes_result = create_graph(ltl_expr.clone());
         let gbuchi = extract_buchi(nodes_result, ltl_expr);
 
-        let buchi = ba_from_gba(gbuchi);
+        let buchi: Buchi = gbuchi.into();
 
         assert_eq!(2, buchi.accepting_states.len());
     }
@@ -467,7 +463,7 @@ mod tests {
             accepting = [vec![s1.clone()]]
         };
 
-        let buchi = ba_from_gba(gbuchi);
+        let buchi: Buchi = gbuchi.into();
 
         assert_eq!(1, buchi.accepting_states.len());
         assert_eq!(4, buchi.adj_list.len());
@@ -494,7 +490,7 @@ mod tests {
             accepting = [vec![INIT, q2]]
         };
 
-        let buchi = ba_from_gba(gbuchi);
+        let buchi: Buchi = gbuchi.into();
         assert_eq!(2, buchi.accepting_states.len());
         assert_eq!(1, buchi.init_states.len());
         assert_eq!(8, buchi.adj_list.len());

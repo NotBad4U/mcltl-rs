@@ -44,16 +44,13 @@ impl TryFrom<String> for KripkeStructure {
         let parse_result = parser::parse(lexer);
 
         match parse_result {
-            Ok(exprs) =>  {
+            Ok(exprs) => {
                 match KripkeStructure::from_exprs(exprs) {
                     Ok(k) => Ok(k),
                     Err(_) => Err("can't parse kripke structure"), //FIXME: should use the error return by parser
                 }
-               
-            },
-            Err(e) => {
-                Err(e.1)
             }
+            Err(e) => Err(e.1),
         }
     }
 }
@@ -78,25 +75,33 @@ impl Into<Buchi> for KripkeStructure {
         for (src, dst) in self.relations.iter() {
             if let Some(node) = buchi.get_node_mut(src.id.as_str()) {
                 let mut target = BuchiNode::new(dst.id.clone());
-                target.labels = dst.assignement.iter().map(|(k, v)| {
-                    if *v {
-                        LTLExpression::Literal(k.into())
-                    } else {
-                        LTLExpression::Not(Box::new(LTLExpression::Literal(k.into())))
-                    }
-                }).collect();
+                target.labels = dst
+                    .assignement
+                    .iter()
+                    .map(|(k, v)| {
+                        if *v {
+                            LTLExpression::Literal(k.into())
+                        } else {
+                            LTLExpression::Not(Box::new(LTLExpression::Literal(k.into())))
+                        }
+                    })
+                    .collect();
 
                 node.adj.push(target);
             } else {
                 let mut node = BuchiNode::new(src.id.clone());
-                let mut target =  BuchiNode::new(dst.id.clone());
-                target.labels = dst.assignement.iter().map(|(k, v)| {
-                    if *v {
-                        LTLExpression::Literal(k.into())
-                    } else {
-                        LTLExpression::Not(Box::new(LTLExpression::Literal(k.into())))
-                    }
-                }).collect();
+                let mut target = BuchiNode::new(dst.id.clone());
+                target.labels = dst
+                    .assignement
+                    .iter()
+                    .map(|(k, v)| {
+                        if *v {
+                            LTLExpression::Literal(k.into())
+                        } else {
+                            LTLExpression::Not(Box::new(LTLExpression::Literal(k.into())))
+                        }
+                    })
+                    .collect();
 
                 node.adj.push(target);
                 buchi.adj_list.push(node.clone());
@@ -110,20 +115,23 @@ impl Into<Buchi> for KripkeStructure {
         for i in self.inits {
             let world = self.worlds.iter().find(|w| w.id == i).unwrap();
             let mut target_node = BuchiNode::new(world.id.clone());
-            target_node.labels = world.assignement.iter().map(|(k, v)| {
-                if *v {
-                    LTLExpression::Literal(k.into())
-                } else {
-                    LTLExpression::Not(Box::new(LTLExpression::Literal(k.into())))
-                }
-            }).collect();
+            target_node.labels = world
+                .assignement
+                .iter()
+                .map(|(k, v)| {
+                    if *v {
+                        LTLExpression::Literal(k.into())
+                    } else {
+                        LTLExpression::Not(Box::new(LTLExpression::Literal(k.into())))
+                    }
+                })
+                .collect();
             init.adj.push(target_node);
         }
 
         buchi.init_states.push(init.clone());
         buchi.adj_list.push(init.clone());
         buchi.accepting_states.push(init.clone());
-
 
         buchi
     }
@@ -397,23 +405,6 @@ mod test_kripke {
 
         let buchi: Buchi = kripke.into();
 
-        /*let buchi_expected = crate::buchi!{
-
-            n1
-                [LTLExpression::Literal("p".into())] => n2
-            n2
-                [LTLExpression::Literal("p".into()), LTLExpression::Literal("q".into())] => n1
-                [LTLExpression::Literal("q".into())] => n3
-            n3
-                [LTLExpression::Literal("p".into()), LTLExpression::Literal("q".into())] => n1
-            INIT
-                [LTLExpression::Literal("p".into()), LTLExpression::Literal("q".into())] => n1
-                [LTLExpression::Literal("p".into())] => n2
-            ===
-            init = [INIT]
-            accepting = [n1, n2, n3, INIT]
-        };*/
-
         assert_eq!(4, buchi.accepting_states.len());
         assert_eq!(1, buchi.init_states.len());
         assert_eq!(4, buchi.adj_list.len());
@@ -439,7 +430,6 @@ mod test_kripke {
         assert_eq!(1, buchi.init_states.len());
         assert_eq!(4, buchi.adj_list.len());
     }
-
 
     #[test]
     fn it_should_parse_kripke_structure() {

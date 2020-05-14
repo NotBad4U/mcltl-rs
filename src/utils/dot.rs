@@ -8,23 +8,17 @@ use std::io::{Result as IOResult, Write};
 type Node = String;
 type Edge<'a> = (String, Vec<LTLExpression>, String);
 
+/// Render in a file, a Büchi automaton in the DOT language
 pub fn render_to_file(buchi: &Buchi, file_name: &str) -> IOResult<()> {
     let mut f = std::fs::File::create(file_name).unwrap();
     dot::render(buchi, &mut f)
 }
 
+/// Render a Büchi automaton in the DOT language
 pub fn render_to<W: Write>(buchi: &Buchi, output: &mut W) -> IOResult<()> {
     dot::render(buchi, output)
 }
 
-pub fn render_to_file_gbuchi(gbuchi: &GeneralBuchi, file_name: &str) -> IOResult<()> {
-    let mut f = std::fs::File::create(file_name).unwrap();
-    dot::render(gbuchi, &mut f)
-}
-
-pub fn render_to_gbuchi<W: Write>(gbuchi: &GeneralBuchi, output: &mut W) -> IOResult<()> {
-    dot::render(gbuchi, output)
-}
 
 impl<'a> dot::Labeller<'a, Node, Edge<'a>> for Buchi {
     fn graph_id(&'a self) -> dot::Id<'a> {
@@ -94,6 +88,17 @@ impl<'a> dot::GraphWalk<'a, Node, Edge<'a>> for Buchi {
     fn target(&self, e: &Edge) -> Node {
         e.2.clone()
     }
+}
+
+/// Render in a file, a Generalized Büchi automaton in the DOT language
+pub fn render_to_file_gbuchi(gbuchi: &GeneralBuchi, file_name: &str) -> IOResult<()> {
+    let mut f = std::fs::File::create(file_name).unwrap();
+    dot::render(gbuchi, &mut f)
+}
+
+/// Render a Generalized Büchi automaton in the DOT language
+pub fn render_to_gbuchi<W: Write>(gbuchi: &GeneralBuchi, output: &mut W) -> IOResult<()> {
+    dot::render(gbuchi, output)
 }
 
 impl<'a> dot::Labeller<'a, Node, Edge<'a>> for GeneralBuchi {

@@ -22,7 +22,7 @@ pub fn verify<'a>(program_path: &'a str, property: &'a str) -> Result<(), (Vec<b
 
     let gbuchi_property = buchi::extract_buchi(nodes, nnf_ltl_property);
 
-    let buchi_property = buchi::ba_from_gba(gbuchi_property);
+    let buchi_property: buchi::Buchi = gbuchi_property.into();
 
     let product_ba = buchi::product_automata(buchi_program.clone(), buchi_property.clone());
 
