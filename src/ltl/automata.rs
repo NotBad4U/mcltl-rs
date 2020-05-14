@@ -139,7 +139,7 @@ fn expand<'a>(mut node: Node, mut nodeset: Vec<Node>) -> Vec<Node> {
                 node.newf.push(f2.as_ref().clone());
                 return expand(node, nodeset);
             }
-            LTLExpression::U(_, _) | LTLExpression::Or(_, _) | LTLExpression::R(_, _) => {
+            LTLExpression::U(_, _) | LTLExpression::Or(_, _) | LTLExpression::V(_, _) | LTLExpression::R(_, _) => {
                 let incoming1 = node.incoming.clone();
                 let mut next1 = node.next.clone();
                 next1.push(f.clone());
@@ -177,7 +177,7 @@ fn expand<'a>(mut node: Node, mut nodeset: Vec<Node>) -> Vec<Node> {
 fn new1(ltle: LTLExpression) -> Set<LTLExpression> {
     match ltle {
         LTLExpression::U(f1, _) => set! { f1.as_ref().clone() },
-        LTLExpression::R(_, f2) => set! { f2.as_ref().clone() },
+        LTLExpression::V(_, f2) => set! { f2.as_ref().clone() },
         LTLExpression::Or(_, f2) => set! { f2.as_ref().clone() },
         _ => set! {},
     }
@@ -186,7 +186,7 @@ fn new1(ltle: LTLExpression) -> Set<LTLExpression> {
 fn new2(ltle: LTLExpression) -> Set<LTLExpression> {
     match ltle {
         LTLExpression::U(_, f2) => set! { f2.as_ref().clone() },
-        LTLExpression::R(f1, f2) => set! { f1.as_ref().clone() , f2.as_ref().clone() },
+        LTLExpression::V(f1, f2) => set! { f1.as_ref().clone() , f2.as_ref().clone() },
         LTLExpression::Or(f1, _) => set! { f1.as_ref().clone() },
         _ => set! {},
     }

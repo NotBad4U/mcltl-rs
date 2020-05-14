@@ -121,8 +121,8 @@ pub fn put_in_nnf(ltle: LTLExpression) -> LTLExpression {
                 )))), // ¬F φ ≡ G ¬φ
                 LTLExpression::F(e) => LTLExpression::G(Box::new(put_in_nnf(LTLExpression::Not(
                     Box::new(put_in_nnf(*e)),
-                )))), // ¬ (φ U ψ) ≡ (¬φ R ¬ψ)
-                LTLExpression::U(e1, e2) => LTLExpression::R(
+                )))), // ¬ (φ U ψ) ≡ (¬φ V ¬ψ) or (¬φ R ¬ψ), we use the dual V to respect the paper: Simple On-the-Fly Automatic Verification of Linear Temporal Logic
+                LTLExpression::U(e1, e2) => LTLExpression::V(
                     Box::new(put_in_nnf(LTLExpression::Not(Box::new(put_in_nnf(*e1))))),
                     Box::new(put_in_nnf(LTLExpression::Not(Box::new(put_in_nnf(*e2))))),
                 ), // ¬ (φ R ψ) ≡ (¬φ U ¬ψ)
@@ -168,7 +168,7 @@ mod test_ltl_expression {
             Box::new(LTLExpression::Literal("q".to_owned())),
         )));
 
-        let expected_nnf = LTLExpression::R(
+        let expected_nnf = LTLExpression::V(
             Box::new(LTLExpression::Not(Box::new(LTLExpression::Literal(
                 "p".to_owned(),
             )))),
