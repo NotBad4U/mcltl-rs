@@ -109,7 +109,7 @@ impl GeneralBuchi {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Buchi {
     pub states: Vec<String>,
     pub accepting_states: Vec<BuchiNode>,
@@ -263,7 +263,7 @@ pub fn ba_from_gba(general_buchi: GeneralBuchi) -> Buchi {
         ba.adj_list = general_buchi.adj_list.clone();
         ba.init_states = general_buchi.init_states.clone();
 
-        return ba
+        return ba;
     }
 
     for (i, _) in general_buchi.accepting_states.iter().enumerate() {
@@ -335,38 +335,24 @@ pub fn ba_from_gba(general_buchi: GeneralBuchi) -> Buchi {
 pub fn product_automata(program: Buchi, property: Buchi) -> Buchi {
     let mut product_buchi = Buchi::new();
 
-    // make S1 × S2
-    let mut product_adjs = HashMap::new();
-
     for n1 in program.adj_list.iter() {
         for n2 in property.adj_list.iter() {
             let product_id = format!("{}_{}", n1.id, n2.id);
             let product_node = BuchiNode::new(product_id);
-
-            product_adjs.insert((n1.clone(), n2.clone()), product_node);
-        }
-    }
-
-    // F := { F1 x Q2, Q1 x F2 }
-    for a in program.accepting_states.iter() {
-        for ((f, _), product_node) in product_adjs.iter() {
-            if a.id == f.id {
-                product_buchi.accepting_states.push(product_node.clone());
-            }
-        }
-    }
-
-    for a in property.accepting_states.iter() {
-        for ((f, _), product_node) in product_adjs.iter() {
-            if a.id == f.id {
-                product_buchi.accepting_states.push(product_node.clone());
-            }
+            product_buchi.adj_list.push(product_node);
         }
     }
 
     // transition function ∆
-    for ((q1, q1_prime), _) in product_adjs.clone().iter() {
-        for ((q2, q2_prime), curr_node) in product_adjs.clone().iter() {
+    for bn1 in product_buchi.adj_list.clone().iter() {
+        let names: Vec<&str> = bn1.id.split('_').collect();
+        let q1 = program.get_node(names[0]).unwrap();
+        let q1_prime = property.get_node(names[1]).unwrap();
+
+        for bn2 in product_buchi.adj_list.clone().iter() {
+            let names: Vec<&str> = bn2.id.split('_').collect();
+            let q2 = program.get_node(names[0]).unwrap();
+            let q2_prime = property.get_node(names[1]).unwrap();
 
             // collect all labels
             let mut labels = HashSet::new();
@@ -385,20 +371,33 @@ pub fn product_automata(program: Buchi, property: Buchi) -> Buchi {
                         .iter()
                         .any(|b| b.id == q2_prime.id && b.labels.contains(&label))
                 {
-                    if let Some(product_node) =
-                        product_adjs.get_mut(&(q1.clone(), q1_prime.clone()))
-                    {
-                        let mut tmp_node = curr_node.clone();
+                    if let Some(product_node) = product_buchi.get_node_mut(bn1.id.as_str()) {
+                        let mut tmp_node = bn2.clone();
                         tmp_node.labels = vec![label.clone()];
-                        (*product_node).adj.push(tmp_node);
+                        (*product_node).adj.push(tmp_node.clone());
                     }
                 }
             }
         }
     }
 
-    for (_, node) in product_adjs.into_iter() {
-        product_buchi.adj_list.push(node);
+    // F := { F1 x Q2, Q1 x F2 }
+    for a in program.accepting_states.iter() {
+        for adj in product_buchi.adj_list.iter() {
+            let names: Vec<&str> = adj.id.split('_').collect();
+            if a.id == names[0] {
+                product_buchi.accepting_states.push(adj.clone());
+            }
+        }
+    }
+
+    for a in property.accepting_states.iter() {
+        for adj in product_buchi.adj_list.iter() {
+            let names: Vec<&str> = adj.id.split('_').collect();
+            if a.id == names[1] {
+                product_buchi.accepting_states.push(adj.clone());
+            }
+        }
     }
 
     // I := I1 x I2
@@ -407,7 +406,7 @@ pub fn product_automata(program: Buchi, property: Buchi) -> Buchi {
     } else if let Some(node) = product_buchi.get_node("INIT_INIT") {
         product_buchi.init_states = vec![node];
     } else {
-        panic!("cannot find the INIT product state, this should not happend");
+        unreachable!("cannot find the INIT product state, this should not happend");
     }
 
     product_buchi
@@ -611,7 +610,7 @@ mod tests {
         let nodes_result = create_graph(simplified_expr.clone());
         let buchi = extract_buchi(nodes_result, simplified_expr);
 
-        assert_eq!(10, buchi.states.len());
+        assert_eq!(19, buchi.states.len());
     }
 
     #[test]
@@ -629,6 +628,6 @@ mod tests {
         let nodes_result = create_graph(simplified_expr.clone());
         let buchi = extract_buchi(nodes_result, simplified_expr);
 
-        assert_eq!(6, buchi.states.len());
+        assert_eq!(9, buchi.states.len());
     }
 }
