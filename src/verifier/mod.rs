@@ -7,14 +7,14 @@ use std::fs;
 pub mod kripke;
 pub mod model_checker;
 
-pub fn verify<'a>(program_path: &'a str, property: &'a str) -> Result<(), String> {
-    let contents = fs::read_to_string(program_path)
-        .map_err(|e| format!("Something went wrong reading the file: {}", e))?;
+pub fn verify<'a>(program_path: &'a str, property: &'a str) -> Result<(), (Vec<buchi::BuchiNode>, Vec<buchi::BuchiNode>)> {
+    let contents = fs::read_to_string(program_path).expect("cannot read program file");
 
-    let kripke_program = kripke::KripkeStructure::try_from(contents)?;
-    let buchi_program = kripke_program.into();
+    let kripke_program = kripke::KripkeStructure::try_from(contents).expect("cannot convert into kripke structure");
+    let buchi_program: buchi::Buchi = kripke_program.clone().into();
 
-    let mut ltl_property = LTLExpression::try_from(property)?;
+
+    let mut ltl_property = LTLExpression::try_from(property).expect("cannot convert try form");
     ltl_property.rewrite();
     let nnf_ltl_property = put_in_nnf(ltl_property);
 
@@ -24,13 +24,7 @@ pub fn verify<'a>(program_path: &'a str, property: &'a str) -> Result<(), String
 
     let buchi_property = buchi::ba_from_gba(gbuchi_property);
 
-    let product_ba = buchi::product_automata(buchi_program, buchi_property);
+    let product_ba = buchi::product_automata(buchi_program.clone(), buchi_property.clone());
 
-    let res = model_checker::emptiness(product_ba);
-
-    if let Ok(_) = res {
-        Ok(())
-    } else {
-        Err("unhold property".to_string())
-    }
+    model_checker::emptiness(product_ba)
 }
