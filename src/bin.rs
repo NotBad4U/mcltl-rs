@@ -77,7 +77,7 @@ fn verify_property<'a>(contents: String, opts: Opts) {
         s2.reverse();
 
         eprintln!("\n\x1b[1;31mResult: LTL property does not hold\x1b[0m");
-        eprintln!("Cycle containing an accepting state:\n");
+        eprintln!("counterexample:\n");
 
         while !s1.is_empty() {
             let top = s1.pop().unwrap();
