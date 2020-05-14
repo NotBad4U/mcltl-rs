@@ -181,12 +181,20 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> GeneralBuchi {
         buchi.states.push(n.id.clone());
 
         for l in n.oldf.iter() {
-            match l {
-                LTLExpression::Literal(lit) => {
+            match *l {
+                LTLExpression::Literal(ref lit) => {
                     buchi_node.labels.push(LTLExpression::Literal(lit.clone()))
                 }
                 LTLExpression::True => buchi_node.labels.push(LTLExpression::True),
                 LTLExpression::False => buchi_node.labels.push(LTLExpression::False),
+                LTLExpression::Not(ref e) => match **e {
+                    LTLExpression::True => buchi_node.labels.push(LTLExpression::False),
+                    LTLExpression::False => buchi_node.labels.push(LTLExpression::True),
+                    LTLExpression::Literal(ref lit) => buchi_node.labels.push(LTLExpression::Not(
+                        Box::new(LTLExpression::Literal(lit.into())),
+                    )),
+                    _ => {}
+                },
                 _ => {}
             }
         }
@@ -249,6 +257,14 @@ pub fn extract_buchi(result: Vec<Node>, f: LTLExpression) -> GeneralBuchi {
 /// * `F'=F1× {1}`
 pub fn ba_from_gba(general_buchi: GeneralBuchi) -> Buchi {
     let mut ba = Buchi::new();
+
+    if general_buchi.accepting_states.is_empty() {
+        ba.accepting_states = general_buchi.adj_list.clone();
+        ba.adj_list = general_buchi.adj_list.clone();
+        ba.init_states = general_buchi.init_states.clone();
+
+        return ba
+    }
 
     for (i, _) in general_buchi.accepting_states.iter().enumerate() {
         for n in general_buchi.adj_list.iter() {
